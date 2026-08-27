@@ -86,6 +86,7 @@ def dostupna_vozidla():
 def vytvor_rezervaci(vstup: RezervaceVstup):
     sluzba = ziskej_sluzbu()
     vysledek = sluzba.vytvor_rezervaci(vstup.uzivatel_id, vstup.vozidlo_id)
+    sluzba.spojeni.close()
     if vysledek["ok"] == False:
         raise HTTPException(status_code=400, detail=vysledek["zprava"])
     return vysledek
@@ -95,6 +96,7 @@ def vytvor_rezervaci(vstup: RezervaceVstup):
 def zrus_rezervaci(rezervace_id: int):
     sluzba = ziskej_sluzbu()
     vysledek = sluzba.zrus_rezervaci(rezervace_id)
+    sluzba.spojeni.close()
     if vysledek["ok"] == False:
         raise HTTPException(status_code=400, detail=vysledek["zprava"])
     return vysledek
@@ -104,6 +106,7 @@ def zrus_rezervaci(rezervace_id: int):
 def zahaj_jizdu(vstup: JizdaVstup):
     sluzba = ziskej_sluzbu()
     vysledek = sluzba.zahaj_jizdu(vstup.rezervace_id)
+    sluzba.spojeni.close()
     if vysledek["ok"] == False:
         raise HTTPException(status_code=400, detail=vysledek["zprava"])
     return vysledek
@@ -113,6 +116,7 @@ def zahaj_jizdu(vstup: JizdaVstup):
 def ukonci_jizdu(jizda_id: int, vstup: UkonceniVstup):
     sluzba = ziskej_sluzbu()
     vysledek = sluzba.ukonci_jizdu(jizda_id, vstup.ujeto_km)
+    sluzba.spojeni.close()
     if vysledek["ok"] == False:
         raise HTTPException(status_code=400, detail=vysledek["zprava"])
     return vysledek
@@ -122,6 +126,7 @@ def ukonci_jizdu(jizda_id: int, vstup: UkonceniVstup):
 def historie(uzivatel_id: int):
     sluzba = ziskej_sluzbu()
     jizdy = sluzba.historie_jizd(uzivatel_id)
+    sluzba.spojeni.close()
 
     vysledek = []
     for jizda in jizdy:
