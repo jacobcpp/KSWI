@@ -60,6 +60,40 @@ function skryjZpravu() {
     boxZprava.classList.add("skryto");
 }
 
+let countdownInterval = null;
+
+function zastavCountdown() {
+    if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+    }
+}
+
+function spustCountdown(platnostDo) {
+    zastavCountdown();
+    const boxCountdown = document.getElementById("countdownRezervace");
+    if (!platnostDo) {
+        boxCountdown.textContent = "";
+        return;
+    }
+    const cil = new Date(platnostDo);
+
+    function tik() {
+        const zbyvaMs = cil - new Date();
+        if (zbyvaMs <= 0) {
+            boxCountdown.textContent = "Rezervace vypršela.";
+            zastavCountdown();
+            return;
+        }
+        const minuty = Math.floor(zbyvaMs / 60000);
+        const vteriny = Math.floor((zbyvaMs % 60000) / 1000);
+        boxCountdown.textContent = `Vyprší za ${minuty}:${String(vteriny).padStart(2, "0")}`;
+    }
+
+    tik();
+    countdownInterval = setInterval(tik, 1000);
+}
+
 async function obnovObrazovku() {
     const stav = nactiStav(uzivatel.id);
 
@@ -68,15 +102,18 @@ async function obnovObrazovku() {
         kartaRezervace.classList.add("skryto");
         kartaJizda.classList.remove("skryto");
         popisJizdy.textContent = `Jízda č. ${stav.jizdaId} (vozidlo č. ${stav.vozidloId}) probíhá.`;
+        zastavCountdown();
     } else if (stav.rezervaceId) {
         kartaVozidla.classList.add("skryto");
         kartaJizda.classList.add("skryto");
         kartaRezervace.classList.remove("skryto");
         popisRezervace.textContent = `Rezervace č. ${stav.rezervaceId} na vozidlo č. ${stav.vozidloId}.`;
+        spustCountdown(stav.platnostDo);
     } else {
         kartaRezervace.classList.add("skryto");
         kartaJizda.classList.add("skryto");
         kartaVozidla.classList.remove("skryto");
+        zastavCountdown();
         await nactiVozidla();
     }
 
@@ -120,7 +157,12 @@ async function rezervovatVozidlo(vozidloId) {
     skryjZpravu();
     try {
         const vysledek = await Api.vytvorRezervaci(uzivatel.id, vozidloId);
-        ulozStav(uzivatel.id, { rezervaceId: vysledek.rezervace_id, vozidloId, jizdaId: null });
+        ulozStav(uzivatel.id, {
+            rezervaceId: vysledek.rezervace_id,
+            vozidloId,
+            jizdaId: null,
+            platnostDo: vysledek.platnost_do,
+        });
         await obnovObrazovku();
     } catch (chyba) {
         zobrazChybu(chyba.message);

@@ -33,6 +33,16 @@ def test_rezervace_uspesna():
     assert vozidlo["stav"] == "rezervovano"
 
 
+def test_rezervace_vraci_platnost_do_pro_countdown():
+    # issue #16: frontend potrebuje platnost_do, aby mohl zobrazit odpocet.
+    sluzba = priprav_sluzbu()
+    vysledek = sluzba.vytvor_rezervaci(1, 1)
+
+    assert "platnost_do" in vysledek
+    platnost_do = datetime.fromisoformat(vysledek["platnost_do"])
+    assert platnost_do > datetime.now()
+
+
 def test_rezervace_malo_nabiteho_vozidla():
     # Auto B (id 2) ma nabiti 15 %, coz je pod limitem 20 % (konflikt K4).
     sluzba = priprav_sluzbu()

@@ -139,7 +139,8 @@ class RezervacniSluzba:
         # Notifikace uzivateli.
         notifications.posli(uzivatel_id, "Vase rezervace vozidla byla vytvorena.")
 
-        return {"ok": True, "zprava": "Rezervace vytvorena.", "rezervace_id": rezervace_id}
+        return {"ok": True, "zprava": "Rezervace vytvorena.", "rezervace_id": rezervace_id,
+                "platnost_do": platnost_do_text}
 
     # ---------- Zruseni rezervace ----------
 
