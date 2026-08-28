@@ -251,6 +251,7 @@ Priorita je uvedena podle metody MoSCoW zjednodušené na tři úrovně:
 | FR12 | Servisní technik může označit vozidlo do údržby. | Vysoká | Scénář (stav vozidel) | Označení právě používaného vozidla | FR14 |
 | FR13 | Servisní technik může potvrdit nabití a uvolnit vozidlo. | Střední | Analýza | Uvolnění nedostatečně nabitého vozidla | FR12, FR14 |
 | FR14 | Systém sleduje stav každého vozidla (volné / rezervováno / v jízdě / údržba). | Vysoká | Scénář (sledování stavu) | Nekonzistence stavu mezi komponentami | – |
+| FR15 | Po ukončení jízdy se nabití vozidla sníží úměrně ujeté vzdálenosti (výchozí 0,3 %/km). | Střední | Feature request (issue #11) | Nabití nesmí klesnout pod 0 | FR6, FR14 |
 
 ---
 
