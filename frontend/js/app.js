@@ -18,6 +18,8 @@ const popisRezervace = document.getElementById("popisRezervace");
 const popisJizdy = document.getElementById("popisJizdy");
 const tabulkaHistorieTelo = document.querySelector("#tabulkaHistorie tbody");
 const historiePrazdna = document.getElementById("historiePrazdna");
+const kartaTechnik = document.getElementById("kartaTechnik");
+const kartaAdmin = document.getElementById("kartaAdmin");
 
 function nazevRole(role) {
     if (role === "admin") return "admin";
@@ -27,6 +29,13 @@ function nazevRole(role) {
 
 document.getElementById("jmenoUzivatele").textContent = uzivatel.jmeno;
 document.getElementById("znackaRole").textContent = nazevRole(uzivatel.role);
+
+if (uzivatel.role === "technik") {
+    kartaTechnik.classList.remove("skryto");
+}
+if (uzivatel.role === "admin") {
+    kartaAdmin.classList.remove("skryto");
+}
 
 document.getElementById("tlacitkoOdhlasit").addEventListener("click", () => {
     odhlasit();
@@ -72,6 +81,13 @@ async function obnovObrazovku() {
     }
 
     await nactiHistorii();
+
+    if (uzivatel.role === "technik") {
+        await nactiServisniPrehled();
+    }
+    if (uzivatel.role === "admin") {
+        await Promise.all([nactiUzivateleAdmin(), nactiFlotiluAdmin(), nactiVsechnyFakturyAdmin()]);
+    }
 }
 
 async function nactiVozidla() {
@@ -172,11 +188,274 @@ async function nactiHistorii() {
                 <td>${jizda.ujeto_km ?? "-"}</td>
                 <td>${jizda.cas_start}</td>
                 <td>${jizda.cas_konec ?? "probíhá"}</td>
+                <td>${jizda.ucel === "testovaci" ? "testovací" : "běžná"}</td>
             `;
             tabulkaHistorieTelo.appendChild(radek);
         }
     } catch (chyba) {
         zobrazChybu("Nepodařilo se načíst historii jízd: " + chyba.message);
+    }
+}
+
+// ---------- Technik: servis vozidel ----------
+
+async function nactiServisniPrehled() {
+    const tabulka = document.querySelector("#tabulkaServis tbody");
+    try {
+        const vozidla = await Api.vsechnaVozidla(uzivatel.id);
+        tabulka.innerHTML = "";
+        for (const vozidlo of vozidla) {
+            const radek = document.createElement("tr");
+            radek.innerHTML = `
+                <td>${vozidlo.nazev}</td>
+                <td>${vozidlo.stav}</td>
+                <td>${vozidlo.nabiti}&nbsp;%</td>
+            `;
+            const bunkaAkce = document.createElement("td");
+
+            if (vozidlo.stav === "volne") {
+                const tlacitko = document.createElement("button");
+                tlacitko.textContent = "Dát do servisu";
+                tlacitko.addEventListener("click", () => oznacitDoServisu(vozidlo.id));
+                bunkaAkce.appendChild(tlacitko);
+            } else if (vozidlo.stav === "udrzba") {
+                const vstupNabiti = document.createElement("input");
+                vstupNabiti.type = "number";
+                vstupNabiti.min = "0";
+                vstupNabiti.max = "100";
+                vstupNabiti.value = vozidlo.nabiti;
+                const tlacitko = document.createElement("button");
+                tlacitko.textContent = "Ukončit servis";
+                tlacitko.addEventListener("click", () =>
+                    ukoncitServis(vozidlo.id, parseInt(vstupNabiti.value, 10) || 0));
+                bunkaAkce.appendChild(vstupNabiti);
+                bunkaAkce.appendChild(tlacitko);
+            } else {
+                bunkaAkce.textContent = "-";
+            }
+
+            radek.appendChild(bunkaAkce);
+            tabulka.appendChild(radek);
+        }
+    } catch (chyba) {
+        zobrazChybu("Nepodařilo se načíst přehled vozidel: " + chyba.message);
+    }
+}
+
+async function oznacitDoServisu(vozidloId) {
+    skryjChybu();
+    skryjZpravu();
+    try {
+        await Api.oznacUdrzbu(uzivatel.id, vozidloId);
+        await nactiServisniPrehled();
+    } catch (chyba) {
+        zobrazChybu(chyba.message);
+    }
+}
+
+async function ukoncitServis(vozidloId, nabiti) {
+    skryjChybu();
+    skryjZpravu();
+    try {
+        const vysledek = await Api.ukonciServis(uzivatel.id, vozidloId, nabiti);
+        zobrazZpravu(vysledek.zprava);
+        await nactiServisniPrehled();
+    } catch (chyba) {
+        zobrazChybu(chyba.message);
+    }
+}
+
+// ---------- Admin: sprava uzivatelu ----------
+
+document.getElementById("tlacitkoVytvoritUzivatele").addEventListener("click", async () => {
+    skryjChybu();
+    skryjZpravu();
+    const jmeno = document.getElementById("novyUzivatelJmeno").value.trim();
+    const role = document.getElementById("novyUzivatelRole").value;
+    try {
+        await Api.vytvorUzivatele(uzivatel.id, jmeno, role);
+        document.getElementById("novyUzivatelJmeno").value = "";
+        zobrazZpravu("Uživatel byl vytvořen.");
+        await nactiUzivateleAdmin();
+    } catch (chyba) {
+        zobrazChybu(chyba.message);
+    }
+});
+
+async function nactiUzivateleAdmin() {
+    const tabulka = document.querySelector("#tabulkaUzivatele tbody");
+    try {
+        const uzivatele = await Api.uzivatele();
+        tabulka.innerHTML = "";
+        for (const u of uzivatele) {
+            const radek = document.createElement("tr");
+            radek.innerHTML = `<td>${u.jmeno}</td>`;
+
+            const bunkaRole = document.createElement("td");
+            const vyberRole = document.createElement("select");
+            for (const [hodnota, popisek] of [
+                ["uzivatel", "zákazník"], ["technik", "technik"], ["admin", "admin"],
+            ]) {
+                const volba = document.createElement("option");
+                volba.value = hodnota;
+                volba.textContent = popisek;
+                if (hodnota === u.role) volba.selected = true;
+                vyberRole.appendChild(volba);
+            }
+            vyberRole.addEventListener("change", () => zmenitRoli(u.id, vyberRole.value));
+            bunkaRole.appendChild(vyberRole);
+            radek.appendChild(bunkaRole);
+
+            const bunkaStav = document.createElement("td");
+            bunkaStav.textContent = u.zablokovan ? "zablokován" : "aktivní";
+            radek.appendChild(bunkaStav);
+
+            const bunkaAkce = document.createElement("td");
+            const tlacitko = document.createElement("button");
+            tlacitko.className = "sekundarni";
+            tlacitko.textContent = u.zablokovan ? "Odblokovat" : "Zablokovat";
+            tlacitko.addEventListener("click", () => prepnoutZablokovani(u.id, !u.zablokovan));
+            bunkaAkce.appendChild(tlacitko);
+            radek.appendChild(bunkaAkce);
+
+            tabulka.appendChild(radek);
+        }
+    } catch (chyba) {
+        zobrazChybu("Nepodařilo se načíst uživatele: " + chyba.message);
+    }
+}
+
+async function prepnoutZablokovani(uzivatelId, zablokovan) {
+    skryjChybu();
+    skryjZpravu();
+    try {
+        await Api.nastavZablokovani(uzivatel.id, uzivatelId, zablokovan);
+        await nactiUzivateleAdmin();
+    } catch (chyba) {
+        zobrazChybu(chyba.message);
+    }
+}
+
+async function zmenitRoli(uzivatelId, role) {
+    skryjChybu();
+    skryjZpravu();
+    try {
+        await Api.zmenRoli(uzivatel.id, uzivatelId, role);
+        zobrazZpravu("Role byla změněna.");
+    } catch (chyba) {
+        zobrazChybu(chyba.message);
+    }
+    await nactiUzivateleAdmin();
+}
+
+// ---------- Admin: sprava vozidel ----------
+
+document.getElementById("tlacitkoPridatVozidlo").addEventListener("click", async () => {
+    skryjChybu();
+    skryjZpravu();
+    const nazev = document.getElementById("noveVozidloNazev").value.trim();
+    const nabiti = parseInt(document.getElementById("noveVozidloNabiti").value, 10) || 0;
+    const lat = parseFloat(document.getElementById("noveVozidloLat").value) || 0;
+    const lon = parseFloat(document.getElementById("noveVozidloLon").value) || 0;
+    try {
+        await Api.pridejVozidlo(uzivatel.id, nazev, nabiti, lat, lon);
+        document.getElementById("noveVozidloNazev").value = "";
+        zobrazZpravu("Vozidlo bylo přidáno do floty.");
+        await nactiFlotiluAdmin();
+    } catch (chyba) {
+        zobrazChybu(chyba.message);
+    }
+});
+
+async function nactiFlotiluAdmin() {
+    const tabulka = document.querySelector("#tabulkaFlotila tbody");
+    try {
+        const vozidla = await Api.vsechnaVozidla(uzivatel.id);
+        tabulka.innerHTML = "";
+        for (const vozidlo of vozidla) {
+            const radek = document.createElement("tr");
+            radek.innerHTML = `
+                <td>${vozidlo.nazev}</td>
+                <td>${vozidlo.stav}</td>
+                <td>${vozidlo.nabiti}&nbsp;%</td>
+            `;
+            const bunkaAkce = document.createElement("td");
+            const lzeOdebrat = vozidlo.stav === "volne" || vozidlo.stav === "udrzba";
+            const tlacitko = document.createElement("button");
+            tlacitko.className = "sekundarni";
+            tlacitko.textContent = "Odebrat";
+            tlacitko.disabled = !lzeOdebrat;
+            tlacitko.title = lzeOdebrat ? "" : "Vozidlo má aktivní rezervaci nebo jízdu.";
+            tlacitko.addEventListener("click", () => odebratVozidlo(vozidlo.id));
+            bunkaAkce.appendChild(tlacitko);
+            radek.appendChild(bunkaAkce);
+            tabulka.appendChild(radek);
+        }
+    } catch (chyba) {
+        zobrazChybu("Nepodařilo se načíst flotilu: " + chyba.message);
+    }
+}
+
+async function odebratVozidlo(vozidloId) {
+    skryjChybu();
+    skryjZpravu();
+    try {
+        await Api.odeberVozidlo(uzivatel.id, vozidloId);
+        await nactiFlotiluAdmin();
+    } catch (chyba) {
+        zobrazChybu(chyba.message);
+    }
+}
+
+// ---------- Admin: prehled vsech faktur ----------
+
+async function nactiVsechnyFakturyAdmin() {
+    const tabulka = document.querySelector("#tabulkaVsechnyFaktury tbody");
+    const prazdne = document.getElementById("fakturyPrazdne");
+    const vyberUzivatel = document.getElementById("filtrFakturyUzivatel");
+    const vyberVozidlo = document.getElementById("filtrFakturyVozidlo");
+
+    try {
+        // Filtry naplnime jen jednou (maji jen vychozi volbu "Vsichni/Vsechna"),
+        // aby se pri kazdem obnoveni neresetoval vyber admina.
+        if (vyberUzivatel.options.length === 1) {
+            const uzivatele = await Api.uzivatele();
+            for (const u of uzivatele) {
+                const volba = document.createElement("option");
+                volba.value = u.id;
+                volba.textContent = u.jmeno;
+                vyberUzivatel.appendChild(volba);
+            }
+            vyberUzivatel.addEventListener("change", () => nactiVsechnyFakturyAdmin());
+        }
+        if (vyberVozidlo.options.length === 1) {
+            const vozidla = await Api.vsechnaVozidla(uzivatel.id);
+            for (const vozidlo of vozidla) {
+                const volba = document.createElement("option");
+                volba.value = vozidlo.id;
+                volba.textContent = vozidlo.nazev;
+                vyberVozidlo.appendChild(volba);
+            }
+            vyberVozidlo.addEventListener("change", () => nactiVsechnyFakturyAdmin());
+        }
+
+        const faktury = await Api.vsechnyFaktury(uzivatel.id, vyberVozidlo.value, vyberUzivatel.value);
+        tabulka.innerHTML = "";
+        prazdne.classList.toggle("skryto", faktury.length > 0);
+        for (const faktura of faktury) {
+            const radek = document.createElement("tr");
+            radek.innerHTML = `
+                <td>${faktura.faktura_id}</td>
+                <td>${faktura.uzivatel_jmeno}</td>
+                <td>${faktura.vozidlo_nazev}</td>
+                <td>${faktura.jizda_id}</td>
+                <td>${faktura.ujeto_km ?? "-"}</td>
+                <td>${faktura.castka}</td>
+            `;
+            tabulka.appendChild(radek);
+        }
+    } catch (chyba) {
+        zobrazChybu("Nepodařilo se načíst faktury: " + chyba.message);
     }
 }
 

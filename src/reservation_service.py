@@ -25,6 +25,11 @@ ROLE_TECHNIK = "technik"
 UCEL_BEZNA = "bezna"
 UCEL_TESTOVACI = "testovaci"
 
+# Admin akce (spravu uzivatelu, vozidel a prehled faktur) - viz issue #5.
+ROLE_ADMIN = "admin"
+ROLE_UZIVATEL = "uzivatel"
+PLATNE_ROLE = {ROLE_UZIVATEL, ROLE_ADMIN, ROLE_TECHNIK}
+
 
 class RezervacniSluzba:
     # Sluzba drzi spojeni s databazi. Diky tomu se da pri testech
@@ -214,3 +219,135 @@ class RezervacniSluzba:
     def historie_jizd(self, uzivatel_id):
         jizdy = database.ziskej_historii_jizd(self.spojeni, uzivatel_id)
         return jizdy
+
+    # ---------- Admin: sprava uzivatelu ----------
+    # Autorizace je stejna jako u K1 (nastav_platnost_rezervace) - server si
+    # podle poslaneho *_id dohleda uzivatele v DB a overi roli, zadne
+    # heslo/token navic (viz otevrena otazka v issue #2/#3).
+
+    def _ma_roli(self, uzivatel_id, ocekavana_role):
+        uzivatel = database.ziskej_uzivatele(self.spojeni, uzivatel_id)
+        return uzivatel is not None and uzivatel["role"] == ocekavana_role
+
+    def vytvor_uzivatele(self, admin_id, jmeno, role):
+        if not self._ma_roli(admin_id, ROLE_ADMIN):
+            return {"ok": False, "zprava": "Pouze administrator muze vytvaret uzivatele."}
+
+        if not jmeno or not jmeno.strip():
+            return {"ok": False, "zprava": "Jmeno nesmi byt prazdne."}
+
+        if role not in PLATNE_ROLE:
+            return {"ok": False, "zprava": "Neplatna role."}
+
+        novy_id = database.vytvor_uzivatele(self.spojeni, jmeno.strip(), role)
+        return {"ok": True, "zprava": "Uzivatel vytvoren.", "uzivatel_id": novy_id}
+
+    def nastav_zablokovani_uzivatele(self, admin_id, cilovy_uzivatel_id, zablokovan):
+        if not self._ma_roli(admin_id, ROLE_ADMIN):
+            return {"ok": False, "zprava": "Pouze administrator muze (od)blokovat uzivatele."}
+
+        cilovy = database.ziskej_uzivatele(self.spojeni, cilovy_uzivatel_id)
+        if cilovy is None:
+            return {"ok": False, "zprava": "Uzivatel neexistuje."}
+
+        database.nastav_zablokovani_uzivatele(self.spojeni, cilovy_uzivatel_id, zablokovan)
+        zprava = "Uzivatel byl zablokovan." if zablokovan else "Uzivatel byl odblokovan."
+        return {"ok": True, "zprava": zprava}
+
+    def zmen_roli_uzivatele(self, admin_id, cilovy_uzivatel_id, nova_role):
+        if not self._ma_roli(admin_id, ROLE_ADMIN):
+            return {"ok": False, "zprava": "Pouze administrator muze menit role."}
+
+        if nova_role not in PLATNE_ROLE:
+            return {"ok": False, "zprava": "Neplatna role."}
+
+        cilovy = database.ziskej_uzivatele(self.spojeni, cilovy_uzivatel_id)
+        if cilovy is None:
+            return {"ok": False, "zprava": "Uzivatel neexistuje."}
+
+        database.nastav_roli_uzivatele(self.spojeni, cilovy_uzivatel_id, nova_role)
+        return {"ok": True, "zprava": "Role byla zmenena."}
+
+    # ---------- Admin: sprava vozidel a prehled faktur ----------
+
+    def pridej_vozidlo(self, admin_id, nazev, nabiti, lat, lon):
+        if not self._ma_roli(admin_id, ROLE_ADMIN):
+            return {"ok": False, "zprava": "Pouze administrator muze pridavat vozidla."}
+
+        if not nazev or not nazev.strip():
+            return {"ok": False, "zprava": "Nazev vozidla nesmi byt prazdny."}
+
+        if not (0 <= nabiti <= 100):
+            return {"ok": False, "zprava": "Nabiti musi byt mezi 0 a 100."}
+
+        vozidlo_id = database.pridej_vozidlo(self.spojeni, nazev.strip(), nabiti, lat, lon)
+        return {"ok": True, "zprava": "Vozidlo pridano do floty.", "vozidlo_id": vozidlo_id}
+
+    def odeber_vozidlo(self, admin_id, vozidlo_id):
+        if not self._ma_roli(admin_id, ROLE_ADMIN):
+            return {"ok": False, "zprava": "Pouze administrator muze odebirat vozidla."}
+
+        vozidlo = database.ziskej_vozidlo(self.spojeni, vozidlo_id)
+        if vozidlo is None:
+            return {"ok": False, "zprava": "Vozidlo neexistuje."}
+
+        # Vozidlo s aktivni rezervaci/jizdou nelze odebrat (viz issue #5).
+        if vozidlo["stav"] not in ("volne", "udrzba"):
+            return {"ok": False, "zprava": "Vozidlo ma aktivni rezervaci nebo jizdu, nelze ho odebrat."}
+
+        database.odeber_vozidlo(self.spojeni, vozidlo_id)
+        return {"ok": True, "zprava": "Vozidlo bylo odebrano z floty."}
+
+    def vsechna_vozidla(self, uzivatel_id):
+        # Pouziva admin (sprava flotily) i technik (prehled pro servis).
+        if not (self._ma_roli(uzivatel_id, ROLE_ADMIN) or self._ma_roli(uzivatel_id, ROLE_TECHNIK)):
+            return {"ok": False, "zprava": "Nemate opravneni videt vsechna vozidla."}
+
+        return {"ok": True, "vozidla": database.ziskej_vsechna_vozidla(self.spojeni)}
+
+    def vsechny_faktury(self, admin_id, vozidlo_id=None, uzivatel_id=None):
+        if not self._ma_roli(admin_id, ROLE_ADMIN):
+            return {"ok": False, "zprava": "Pouze administrator muze videt vsechny faktury."}
+
+        faktury = database.ziskej_vsechny_faktury(self.spojeni, vozidlo_id, uzivatel_id)
+        return {"ok": True, "faktury": faktury}
+
+    # ---------- Technik: servis vozidla ----------
+
+    def oznac_vozidlo_pro_udrzbu(self, technik_id, vozidlo_id):
+        if not self._ma_roli(technik_id, ROLE_TECHNIK):
+            return {"ok": False, "zprava": "Pouze technik muze oznacit vozidlo do servisu."}
+
+        vozidlo = database.ziskej_vozidlo(self.spojeni, vozidlo_id)
+        if vozidlo is None:
+            return {"ok": False, "zprava": "Vozidlo neexistuje."}
+
+        # Prave rezervovane/pouzivane vozidlo nelze poslat do servisu (FR12).
+        if vozidlo["stav"] != "volne":
+            return {"ok": False, "zprava": "Vozidlo neni volne, nelze ho dat do servisu."}
+
+        database.nastav_stav_vozidla(self.spojeni, vozidlo_id, "udrzba")
+        return {"ok": True, "zprava": "Vozidlo bylo oznaceno do servisu."}
+
+    def ukonci_servis(self, technik_id, vozidlo_id, nabiti):
+        if not self._ma_roli(technik_id, ROLE_TECHNIK):
+            return {"ok": False, "zprava": "Pouze technik muze ukoncit servis."}
+
+        vozidlo = database.ziskej_vozidlo(self.spojeni, vozidlo_id)
+        if vozidlo is None:
+            return {"ok": False, "zprava": "Vozidlo neexistuje."}
+
+        if vozidlo["stav"] != "udrzba":
+            return {"ok": False, "zprava": "Vozidlo neni v servisu."}
+
+        if not (0 <= nabiti <= 100):
+            return {"ok": False, "zprava": "Nabiti musi byt mezi 0 a 100."}
+
+        database.nastav_nabiti_vozidla(self.spojeni, vozidlo_id, nabiti)
+
+        # Diagram 1.3.7: pri nedostatecnem nabiti zustava vozidlo v servisu.
+        if nabiti < MIN_NABITI_PROCENT:
+            return {"ok": True, "zprava": "Nabiti je stale nedostatecne, vozidlo zustava v servisu."}
+
+        database.nastav_stav_vozidla(self.spojeni, vozidlo_id, "volne")
+        return {"ok": True, "zprava": "Servis byl ukoncen, vozidlo je znovu volne."}

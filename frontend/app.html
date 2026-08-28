@@ -47,11 +47,103 @@
                     <th>Ujeto (km)</th>
                     <th>Zahájena</th>
                     <th>Ukončena</th>
+                    <th>Účel</th>
                 </tr>
             </thead>
             <tbody></tbody>
         </table>
         <p id="historiePrazdna" class="poznamka skryto">Zatím žádné jízdy.</p>
+    </div>
+
+    <div class="karta skryto" id="kartaTechnik">
+        <h2>Servis vozidel</h2>
+        <table id="tabulkaServis">
+            <thead>
+                <tr>
+                    <th>Vozidlo</th>
+                    <th>Stav</th>
+                    <th>Nabito</th>
+                    <th>Akce</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <div class="karta skryto" id="kartaAdmin">
+        <h2>Administrace</h2>
+
+        <h3>Nový uživatel</h3>
+        <label for="novyUzivatelJmeno">Jméno</label>
+        <input type="text" id="novyUzivatelJmeno" placeholder="Jméno a příjmení">
+        <label for="novyUzivatelRole">Role</label>
+        <select id="novyUzivatelRole">
+            <option value="uzivatel">zákazník</option>
+            <option value="technik">technik</option>
+            <option value="admin">admin</option>
+        </select>
+        <button id="tlacitkoVytvoritUzivatele">Vytvořit uživatele</button>
+
+        <h3>Uživatelé</h3>
+        <table id="tabulkaUzivatele">
+            <thead>
+                <tr>
+                    <th>Jméno</th>
+                    <th>Role</th>
+                    <th>Stav</th>
+                    <th>Akce</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <h3>Nové vozidlo</h3>
+        <label for="noveVozidloNazev">Název</label>
+        <input type="text" id="noveVozidloNazev" placeholder="Např. Auto D">
+        <label for="noveVozidloNabiti">Nabití (%)</label>
+        <input type="number" id="noveVozidloNabiti" min="0" max="100" value="100">
+        <label for="noveVozidloLat">Zeměpisná šířka</label>
+        <input type="number" id="noveVozidloLat" step="0.0001" value="50.08">
+        <label for="noveVozidloLon">Zeměpisná délka</label>
+        <input type="number" id="noveVozidloLon" step="0.0001" value="14.42">
+        <button id="tlacitkoPridatVozidlo">Přidat vozidlo</button>
+
+        <h3>Flotila</h3>
+        <table id="tabulkaFlotila">
+            <thead>
+                <tr>
+                    <th>Vozidlo</th>
+                    <th>Stav</th>
+                    <th>Nabito</th>
+                    <th>Akce</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <h3>Všechny faktury</h3>
+        <label for="filtrFakturyUzivatel">Filtrovat podle uživatele</label>
+        <select id="filtrFakturyUzivatel">
+            <option value="">Všichni uživatelé</option>
+        </select>
+        <label for="filtrFakturyVozidlo">Filtrovat podle vozidla</label>
+        <select id="filtrFakturyVozidlo">
+            <option value="">Všechna vozidla</option>
+        </select>
+        <table id="tabulkaVsechnyFaktury">
+            <thead>
+                <tr>
+                    <th>Faktura</th>
+                    <th>Uživatel</th>
+                    <th>Vozidlo</th>
+                    <th>Jízda</th>
+                    <th>Ujeto (km)</th>
+                    <th>Částka (Kč)</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <p id="fakturyPrazdne" class="poznamka skryto">Žádné faktury neodpovídají filtru.</p>
     </div>
 
     <script src="js/config.js"></script>
