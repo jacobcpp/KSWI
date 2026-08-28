@@ -214,10 +214,13 @@ class RezervacniSluzba:
         nove_nabiti = max(0, round(vozidlo["nabiti"] - ujeto_km * SPOTREBA_NABITI_PROCENT_NA_KM))
         database.nastav_nabiti_vozidla(self.spojeni, jizda["vozidlo_id"], nove_nabiti)
 
-        # Rezervace je dokoncena a vozidlo je zase volne.
+        # Rezervace je dokoncena. Pokud vozidlo po jizde kleslo pod minimalni
+        # nabiti pro rezervaci (K4), automaticky se posle do servisu - dal uz
+        # je na technikovi, aby servis ukoncil (ukonci_servis).
         rezervace = database.ziskej_rezervaci(self.spojeni, jizda["rezervace_id"])
         database.nastav_stav_rezervace(self.spojeni, jizda["rezervace_id"], "dokoncena")
-        database.nastav_stav_vozidla(self.spojeni, jizda["vozidlo_id"], "volne")
+        novy_stav_vozidla = "udrzba" if nove_nabiti < MIN_NABITI_PROCENT else "volne"
+        database.nastav_stav_vozidla(self.spojeni, jizda["vozidlo_id"], novy_stav_vozidla)
 
         # K3: testovaci jizda (technik) se nefakturuje - o fakturaci rozhoduje
         # ucel ulozeny na rezervaci, ne aktualni role uzivatele.
