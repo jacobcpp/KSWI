@@ -303,9 +303,10 @@ def vsechna_vozidla(uzivatel_id: int):
 
 
 @app.get("/admin/faktury")
-def vsechny_faktury(admin_id: int):
+def vsechny_faktury(admin_id: int, vozidlo_id: int | None = None, uzivatel_id: int | None = None):
+    # vozidlo_id/uzivatel_id jsou volitelne filtry pro prehled admina.
     sluzba = ziskej_sluzbu()
-    vysledek = sluzba.vsechny_faktury(admin_id)
+    vysledek = sluzba.vsechny_faktury(admin_id, vozidlo_id, uzivatel_id)
     sluzba.spojeni.close()
     if vysledek["ok"] == False:
         raise HTTPException(status_code=400, detail=vysledek["zprava"])
@@ -316,6 +317,9 @@ def vsechny_faktury(admin_id: int):
             "jizda_id": faktura["jizda_id"],
             "uzivatel_id": faktura["uzivatel_id"],
             "uzivatel_jmeno": faktura["uzivatel_jmeno"],
+            "vozidlo_id": faktura["vozidlo_id"],
+            "vozidlo_nazev": faktura["vozidlo_nazev"],
+            "ujeto_km": faktura["ujeto_km"],
             "castka": faktura["castka"],
         }
         for faktura in vysledek["faktury"]

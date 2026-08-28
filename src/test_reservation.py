@@ -260,7 +260,33 @@ def test_admin_vidi_vsechny_faktury():
     vysledek = sluzba.vsechny_faktury(2)
     assert vysledek["ok"] == True
     assert len(vysledek["faktury"]) == 1
-    assert vysledek["faktury"][0]["uzivatel_jmeno"] == "Jan Novak"
+    faktura = vysledek["faktury"][0]
+    assert faktura["uzivatel_jmeno"] == "Jan Novak"
+    assert faktura["vozidlo_nazev"] == "Auto A"
+    assert faktura["ujeto_km"] == 10
+
+
+def test_admin_muze_filtrovat_faktury_podle_vozidla_a_uzivatele():
+    sluzba = priprav_sluzbu()
+
+    rezervace1 = sluzba.vytvor_rezervaci(1, 1)
+    jizda1 = sluzba.zahaj_jizdu(rezervace1["rezervace_id"])
+    sluzba.ukonci_jizdu(jizda1["jizda_id"], 10)
+
+    # Vozidlo 1 je zase volne, druhou jizdu na nem udela admin (uzivatel 2).
+    rezervace2 = sluzba.vytvor_rezervaci(2, 1)
+    jizda2 = sluzba.zahaj_jizdu(rezervace2["rezervace_id"])
+    sluzba.ukonci_jizdu(jizda2["jizda_id"], 20)
+
+    vsechny = sluzba.vsechny_faktury(2)
+    assert len(vsechny["faktury"]) == 2
+
+    podle_vozidla = sluzba.vsechny_faktury(2, vozidlo_id=1)
+    assert len(podle_vozidla["faktury"]) == 2
+
+    podle_uzivatele = sluzba.vsechny_faktury(2, uzivatel_id=1)
+    assert len(podle_uzivatele["faktury"]) == 1
+    assert podle_uzivatele["faktury"][0]["uzivatel_jmeno"] == "Jan Novak"
 
 
 def test_technik_muze_oznacit_a_ukoncit_servis():

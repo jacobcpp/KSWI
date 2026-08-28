@@ -412,8 +412,34 @@ async function odebratVozidlo(vozidloId) {
 async function nactiVsechnyFakturyAdmin() {
     const tabulka = document.querySelector("#tabulkaVsechnyFaktury tbody");
     const prazdne = document.getElementById("fakturyPrazdne");
+    const vyberUzivatel = document.getElementById("filtrFakturyUzivatel");
+    const vyberVozidlo = document.getElementById("filtrFakturyVozidlo");
+
     try {
-        const faktury = await Api.vsechnyFaktury(uzivatel.id);
+        // Filtry naplnime jen jednou (maji jen vychozi volbu "Vsichni/Vsechna"),
+        // aby se pri kazdem obnoveni neresetoval vyber admina.
+        if (vyberUzivatel.options.length === 1) {
+            const uzivatele = await Api.uzivatele();
+            for (const u of uzivatele) {
+                const volba = document.createElement("option");
+                volba.value = u.id;
+                volba.textContent = u.jmeno;
+                vyberUzivatel.appendChild(volba);
+            }
+            vyberUzivatel.addEventListener("change", () => nactiVsechnyFakturyAdmin());
+        }
+        if (vyberVozidlo.options.length === 1) {
+            const vozidla = await Api.vsechnaVozidla(uzivatel.id);
+            for (const vozidlo of vozidla) {
+                const volba = document.createElement("option");
+                volba.value = vozidlo.id;
+                volba.textContent = vozidlo.nazev;
+                vyberVozidlo.appendChild(volba);
+            }
+            vyberVozidlo.addEventListener("change", () => nactiVsechnyFakturyAdmin());
+        }
+
+        const faktury = await Api.vsechnyFaktury(uzivatel.id, vyberVozidlo.value, vyberUzivatel.value);
         tabulka.innerHTML = "";
         prazdne.classList.toggle("skryto", faktury.length > 0);
         for (const faktura of faktury) {
@@ -421,7 +447,9 @@ async function nactiVsechnyFakturyAdmin() {
             radek.innerHTML = `
                 <td>${faktura.faktura_id}</td>
                 <td>${faktura.uzivatel_jmeno}</td>
+                <td>${faktura.vozidlo_nazev}</td>
                 <td>${faktura.jizda_id}</td>
+                <td>${faktura.ujeto_km ?? "-"}</td>
                 <td>${faktura.castka}</td>
             `;
             tabulka.appendChild(radek);

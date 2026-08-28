@@ -305,11 +305,12 @@ class RezervacniSluzba:
 
         return {"ok": True, "vozidla": database.ziskej_vsechna_vozidla(self.spojeni)}
 
-    def vsechny_faktury(self, admin_id):
+    def vsechny_faktury(self, admin_id, vozidlo_id=None, uzivatel_id=None):
         if not self._ma_roli(admin_id, ROLE_ADMIN):
             return {"ok": False, "zprava": "Pouze administrator muze videt vsechny faktury."}
 
-        return {"ok": True, "faktury": database.ziskej_vsechny_faktury(self.spojeni)}
+        faktury = database.ziskej_vsechny_faktury(self.spojeni, vozidlo_id, uzivatel_id)
+        return {"ok": True, "faktury": faktury}
 
     # ---------- Technik: servis vozidla ----------
 

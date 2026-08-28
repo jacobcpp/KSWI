@@ -48,7 +48,12 @@ const Api = {
         apiPost("/admin/vozidla", { admin_id: adminId, nazev, nabiti, lat, lon }),
     odeberVozidlo: (adminId, vozidloId) =>
         apiPost(`/admin/vozidla/${vozidloId}/odebrani`, { admin_id: adminId }),
-    vsechnyFaktury: (adminId) => apiGet(`/admin/faktury?admin_id=${adminId}`),
+    vsechnyFaktury: (adminId, vozidloId, uzivatelId) => {
+        let cesta = `/admin/faktury?admin_id=${adminId}`;
+        if (vozidloId) cesta += `&vozidlo_id=${vozidloId}`;
+        if (uzivatelId) cesta += `&uzivatel_id=${uzivatelId}`;
+        return apiGet(cesta);
+    },
 
     // ---------- Admin + technik: prehled cele floty ----------
     vsechnaVozidla: (uzivatelId) => apiGet(`/vozidla/vsechna?uzivatel_id=${uzivatelId}`),

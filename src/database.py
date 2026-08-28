@@ -308,14 +308,34 @@ def ziskej_faktury_uzivatele(spojeni, uzivatel_id):
     return kurzor.fetchall()
 
 
-def ziskej_vsechny_faktury(spojeni):
-    # Prehled pro admina - faktury vsech uzivatelu, se jmenem pro citelnost.
+def ziskej_vsechny_faktury(spojeni, vozidlo_id=None, uzivatel_id=None):
+    # Prehled pro admina - faktury vsech uzivatelu, se jmenem, vozidlem
+    # a ujetymi km pro citelnost. Volitelne filtrovatelne podle vozidla
+    # a/nebo uzivatele.
     kurzor = spojeni.cursor()
-    kurzor.execute("""
+
+    dotaz = """
         SELECT faktury.id, faktury.jizda_id, faktury.uzivatel_id, faktury.castka,
-               uzivatele.jmeno AS uzivatel_jmeno
+               uzivatele.jmeno AS uzivatel_jmeno,
+               jizdy.vozidlo_id AS vozidlo_id, jizdy.ujeto_km AS ujeto_km,
+               vozidla.nazev AS vozidlo_nazev
         FROM faktury
         JOIN uzivatele ON uzivatele.id = faktury.uzivatel_id
-        ORDER BY faktury.id
-    """)
+        JOIN jizdy ON jizdy.id = faktury.jizda_id
+        JOIN vozidla ON vozidla.id = jizdy.vozidlo_id
+        WHERE 1 = 1
+    """
+    parametry = []
+
+    if vozidlo_id is not None:
+        dotaz += " AND jizdy.vozidlo_id = ?"
+        parametry.append(vozidlo_id)
+
+    if uzivatel_id is not None:
+        dotaz += " AND faktury.uzivatel_id = ?"
+        parametry.append(uzivatel_id)
+
+    dotaz += " ORDER BY faktury.id"
+
+    kurzor.execute(dotaz, parametry)
     return kurzor.fetchall()

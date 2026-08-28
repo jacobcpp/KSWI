@@ -122,18 +122,28 @@
         </table>
 
         <h3>Všechny faktury</h3>
+        <label for="filtrFakturyUzivatel">Filtrovat podle uživatele</label>
+        <select id="filtrFakturyUzivatel">
+            <option value="">Všichni uživatelé</option>
+        </select>
+        <label for="filtrFakturyVozidlo">Filtrovat podle vozidla</label>
+        <select id="filtrFakturyVozidlo">
+            <option value="">Všechna vozidla</option>
+        </select>
         <table id="tabulkaVsechnyFaktury">
             <thead>
                 <tr>
                     <th>Faktura</th>
                     <th>Uživatel</th>
+                    <th>Vozidlo</th>
                     <th>Jízda</th>
+                    <th>Ujeto (km)</th>
                     <th>Částka (Kč)</th>
                 </tr>
             </thead>
             <tbody></tbody>
         </table>
-        <p id="fakturyPrazdne" class="poznamka skryto">Zatím žádné faktury.</p>
+        <p id="fakturyPrazdne" class="poznamka skryto">Žádné faktury neodpovídají filtru.</p>
     </div>
 
     <script src="js/config.js"></script>
