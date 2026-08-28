@@ -5,6 +5,10 @@ services:
       dockerfile: src/Dockerfile
     ports:
       - "8122:8000"
+    volumes:
+      # Databaze zije mimo /app/src (viz src/Dockerfile), takze volume
+      # neschova kod pri rebuildu - jen data prezijou restart/rebuild.
+      - api_data:/app/data
 
   frontend:
     build:
@@ -16,3 +20,6 @@ services:
       - "8123:80"
     depends_on:
       - api
+
+volumes:
+  api_data:

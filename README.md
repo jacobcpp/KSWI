@@ -68,3 +68,11 @@ Frontend (`frontend/`, vanilla JS bez buildu) je jednoduché rozhraní nad REST
 API – přihlášení výběrem uživatele ze seznamu (bez hesla), seznam vozidel,
 rezervace, zahájení/ukončení jízdy a historie jízd. Adresa API se do frontendu
 propisuje přes proměnnou `API_BASE_URL` v `docker-compose.yml`.
+
+Databáze (SQLite) je uložená v pojmenovaném Docker volume (`api_data`), takže
+přežije `docker compose down` i `--build`. Pro čistý start od výchozích
+ukázkových dat (a tedy smazání volume):
+
+```
+docker compose down -v
+```

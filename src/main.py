@@ -6,6 +6,8 @@
 # Spusteni:  uvicorn main:app --reload
 # Dokumentace API po spusteni:  http://127.0.0.1:8000/docs
 
+import os
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -25,8 +27,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Soubor s databazi pro API.
-DB_SOUBOR = "carsharing_api.db"
+# Soubor s databazi pro API. V Dockeru se prepisuje promennou prostredi
+# DB_CESTA na cestu v pripojenem volume, aby databaze prezila rebuild
+# i restart kontejneru (issue #6). Bez ni se pouzije puvodni chovani
+# (soubor v aktualnim adresari - pro lokalni beh mimo Docker).
+DB_SOUBOR = os.environ.get("DB_CESTA", "carsharing_api.db")
 
 
 def priprav_databazi():
