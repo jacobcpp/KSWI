@@ -5,7 +5,7 @@
 # Spusteni ve slozce src:  python3 -m pytest test_reservation.py -v
 
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import database
 from reservation_service import RezervacniSluzba
@@ -40,7 +40,7 @@ def test_rezervace_vraci_platnost_do_pro_countdown():
 
     assert "platnost_do" in vysledek
     platnost_do = datetime.fromisoformat(vysledek["platnost_do"])
-    assert platnost_do > datetime.now()
+    assert platnost_do > datetime.now(timezone.utc)
 
 
 def test_rezervace_malo_nabiteho_vozidla():
@@ -116,7 +116,7 @@ def test_nova_rezervace_pouziva_zmeneny_limit():
     rezervace = sluzba.vytvor_rezervaci(1, 1)
     ulozena = database.ziskej_rezervaci(sluzba.spojeni, rezervace["rezervace_id"])
 
-    ocekavana_platnost = datetime.now() + timedelta(minutes=45)
+    ocekavana_platnost = datetime.now(timezone.utc) + timedelta(minutes=45)
     skutecna_platnost = datetime.fromisoformat(ulozena["platnost_do"])
     # Porovnavame s tolerenci nekolika sekund kvuli behu testu.
     assert abs((skutecna_platnost - ocekavana_platnost).total_seconds()) < 5
@@ -129,7 +129,7 @@ def test_vyprsela_rezervace_uvolni_vozidlo_bez_zahajeni_jizdy():
     rezervace = sluzba.vytvor_rezervaci(1, 1)
     rezervace_id = rezervace["rezervace_id"]
 
-    minulost = (datetime.now() - timedelta(minutes=1)).isoformat()
+    minulost = (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat()
     kurzor = sluzba.spojeni.cursor()
     kurzor.execute("UPDATE rezervace SET platnost_do = ? WHERE id = ?",
                    (minulost, rezervace_id))
@@ -152,7 +152,7 @@ def test_zahajeni_jizdy_po_vyprseni_rezervace():
     rezervace_id = rezervace["rezervace_id"]
 
     # Rucne nastavime platnost rezervace do minulosti.
-    minulost = (datetime.now() - timedelta(minutes=1)).isoformat()
+    minulost = (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat()
     kurzor = sluzba.spojeni.cursor()
     kurzor.execute("UPDATE rezervace SET platnost_do = ? WHERE id = ?",
                    (minulost, rezervace_id))

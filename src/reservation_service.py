@@ -4,7 +4,7 @@
 # Komunikuje s datovou vrstvou (database) a s ostatnimi komponentami
 # (maps, billing, notifications).
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import database
 import maps
@@ -79,8 +79,13 @@ class RezervacniSluzba:
     def over_a_vyprsele_rezervace(self):
         # Projde aktivni rezervace a ty, kterym vyprsela platnost, automaticky
         # zrusi a uvolni jejich vozidlo (K1 / FR5).
+        # Pouzivame datetime.now(timezone.utc), ne naivni datetime.now() -
+        # platnost_do se posila i do prohlizece (countdown, issue #16) a
+        # naivni ISO retezec bez UTC znacky by JS new Date() interpretoval
+        # v casove zone prohlizece, ne serveru - rezervace by mohla vypadat
+        # vyprsela okamzite po vytvoreni.
         aktivni_rezervace = database.ziskej_aktivni_rezervace(self.spojeni)
-        ted = datetime.now()
+        ted = datetime.now(timezone.utc)
 
         for rezervace in aktivni_rezervace:
             platnost_do = datetime.fromisoformat(rezervace["platnost_do"])
@@ -125,7 +130,7 @@ class RezervacniSluzba:
 
         # Vypocet platnosti rezervace (K1) - limit je konfigurovatelny administratorem.
         platnost_minut = self.ziskej_platnost_rezervace_minut()
-        platnost_do = datetime.now() + timedelta(minutes=platnost_minut)
+        platnost_do = datetime.now(timezone.utc) + timedelta(minutes=platnost_minut)
         platnost_do_text = platnost_do.isoformat()
 
         # Ucel rezervace podle role (K3) - technikova jizda je testovaci.
@@ -172,7 +177,7 @@ class RezervacniSluzba:
 
         # Kontrola z konfliktu K1: rezervace mohla vyprset.
         platnost_do = datetime.fromisoformat(rezervace["platnost_do"])
-        if datetime.now() > platnost_do:
+        if datetime.now(timezone.utc) > platnost_do:
             # Rezervace vyprsela - uvolnime vozidlo.
             database.nastav_stav_rezervace(self.spojeni, rezervace_id, "vyprsela")
             database.nastav_stav_vozidla(self.spojeni, rezervace["vozidlo_id"], "volne")
