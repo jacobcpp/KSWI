@@ -251,6 +251,26 @@ def test_nelze_odebrat_vozidlo_s_aktivni_rezervaci():
     assert database.ziskej_vozidlo(sluzba.spojeni, 1) is not None
 
 
+def test_admin_vidi_aktivniho_uzivatele_rezervovaneho_vozidla():
+    # issue #17: admin v prehledu flotily vidi, kdo ma vozidlo rezervovane.
+    sluzba = priprav_sluzbu()
+    sluzba.vytvor_rezervaci(1, 1)
+
+    vysledek = sluzba.vsechna_vozidla(2)
+    assert vysledek["ok"] == True
+
+    auto_a = next(v for v in vysledek["vozidla"] if v["id"] == 1)
+    assert auto_a["aktivni_uzivatel_jmeno"] == "Jan Novak"
+
+
+def test_volne_vozidlo_nema_aktivniho_uzivatele():
+    sluzba = priprav_sluzbu()
+
+    vysledek = sluzba.vsechna_vozidla(2)
+    auto_a = next(v for v in vysledek["vozidla"] if v["id"] == 1)
+    assert auto_a["aktivni_uzivatel_jmeno"] is None
+
+
 def test_admin_vidi_vsechny_faktury():
     sluzba = priprav_sluzbu()
     rezervace = sluzba.vytvor_rezervaci(1, 1)

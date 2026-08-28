@@ -164,8 +164,16 @@ def ziskej_dostupna_vozidla(spojeni):
 
 def ziskej_vsechna_vozidla(spojeni):
     # Pouziva admin (sprava flotily) a technik (prehled pro servis).
+    # LEFT JOIN na aktivni rezervaci doplni jmeno uzivatele, ktery ma vozidlo
+    # prave rezervovane/v jizde (admin - issue #17); jinde je NULL.
     kurzor = spojeni.cursor()
-    kurzor.execute("SELECT * FROM vozidla")
+    kurzor.execute("""
+        SELECT vozidla.*, uzivatele.jmeno AS aktivni_uzivatel_jmeno
+        FROM vozidla
+        LEFT JOIN rezervace ON rezervace.vozidlo_id = vozidla.id
+                            AND rezervace.stav = 'aktivni'
+        LEFT JOIN uzivatele ON uzivatele.id = rezervace.uzivatel_id
+    """)
     return kurzor.fetchall()
 
 

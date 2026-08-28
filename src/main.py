@@ -302,6 +302,9 @@ def vsechna_vozidla(uzivatel_id: int):
             "nabiti": vozidlo["nabiti"],
             "lat": vozidlo["lat"],
             "lon": vozidlo["lon"],
+            # Jmeno uzivatele s aktivni rezervaci/jizdou na vozidle (jinak
+            # None) - pro admina, aby videl kdo ma co v ruce (issue #17).
+            "aktivni_uzivatel": vozidlo["aktivni_uzivatel_jmeno"],
         }
         for vozidlo in vysledek["vozidla"]
     ]
