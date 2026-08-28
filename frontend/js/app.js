@@ -420,6 +420,7 @@ async function nactiFlotiluAdmin() {
                 <td>${vozidlo.nazev}</td>
                 <td>${vozidlo.stav}</td>
                 <td>${vozidlo.nabiti}&nbsp;%</td>
+                <td>${vozidlo.aktivni_uzivatel ?? "-"}</td>
             `;
             const bunkaAkce = document.createElement("td");
             const lzeOdebrat = vozidlo.stav === "volne" || vozidlo.stav === "udrzba";

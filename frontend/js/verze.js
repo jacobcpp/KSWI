@@ -3,4 +3,4 @@
 // funkcionality/opravy, nezavisle na verzi backendu. Na rozdil od config.js
 // se tento soubor v Dockeru za behu neprepisuje - je to staticky konstantni
 // udaj zapeceny primo v obraze.
-window.FRONTEND_VERZE = "0.2.0";
+window.FRONTEND_VERZE = "0.3.0";
