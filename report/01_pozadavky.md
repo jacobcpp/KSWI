@@ -4,7 +4,10 @@
 
 Systém slouží ke správě sdílených elektromobilů ve městě. Umožňuje uživatelům
 rezervovat vozidla, sledovat jejich stav, generovat faktury za jízdy, spravovat
-uživatele a jejich oprávnění a zobrazovat dostupná vozidla na mapě.
+uživatele a jejich oprávnění a zobrazovat dostupná vozidla na mapě. Kromě REST
+API existuje i jednoduchý webový frontend (statické HTML/JS), přes který se dá
+celý tok (přihlášení, rezervace, jízda, administrace, servis) reálně vyzkoušet
+v prohlížeči.
 
 Z analýzy scénáře vyplynuly tři hlavní role uživatelů:
 
@@ -23,8 +26,9 @@ Případy užití:
 1. Registrace a přihlášení
 2. Zobrazit dostupná vozidla na mapě
 3. Rezervovat vozidlo
-4. Zrušit rezervaci
-5. Zobrazit historii jízd a faktur
+4. Sledovat odpočet do vypršení rezervace
+5. Zrušit rezervaci
+6. Zobrazit historii jízd a faktur
 
 ```mermaid
 graph LR
@@ -32,34 +36,42 @@ graph LR
     UC1(Registrace a přihlášení)
     UC2(Zobrazit vozidla na mapě)
     UC3(Rezervovat vozidlo)
-    UC4(Zrušit rezervaci)
-    UC5(Historie jízd a faktur)
+    UC4(Sledovat odpočet rezervace)
+    UC5(Zrušit rezervaci)
+    UC6(Historie jízd a faktur)
     U --- UC1
     U --- UC2
     U --- UC3
     U --- UC4
     U --- UC5
+    U --- UC6
 ```
 
 ### 1.2.2 Admin
 
 Případy užití:
-1. Spravovat uživatele (vytvořit, upravit, zablokovat)
-2. Spravovat oprávnění (přiřadit roli)
-3. Spravovat flotilu (přidat / odebrat vozidlo)
-4. Zobrazit přehled a statistiky provozu
+1. Vytvořit nového uživatele
+2. (Od)blokovat uživatele
+3. Změnit roli uživatele
+4. Spravovat flotilu (přidat / odebrat vozidlo)
+5. Zobrazit přehled všech faktur, filtrovatelný podle uživatele a vozidla
+6. Vidět, kdo má které vozidlo právě rezervované nebo v jízdě
 
 ```mermaid
 graph LR
     A([Admin])
-    AC1(Spravovat uživatele)
-    AC2(Spravovat oprávnění)
-    AC3(Spravovat flotilu)
-    AC4(Zobrazit statistiky)
+    AC1(Vytvořit uživatele)
+    AC2(Od/blokovat uživatele)
+    AC3(Změnit roli uživatele)
+    AC4(Spravovat flotilu)
+    AC5(Přehled všech faktur)
+    AC6(Vidět aktivního uživatele vozidla)
     A --- AC1
     A --- AC2
     A --- AC3
     A --- AC4
+    A --- AC5
+    A --- AC6
 ```
 
 ### 1.2.3 Servisní technik
@@ -100,12 +112,15 @@ graph TB
     S4(Správa uživatelů a oprávnění)
     S5(Zobrazení na mapě)
     S6(Údržba a nabíjení)
+    S7(Správa flotily)
 
     U --- S1
     U --- S3
     U --- S5
     A --- S4
     A --- S2
+    A --- S3
+    A --- S7
     T --- S6
     T --- S2
 ```
@@ -159,17 +174,20 @@ flowchart TD
 
 ### 1.3.4 Správa uživatelů (admin)
 
+Autorizace každé akce je řešena stejně jako u K1: server dohledá uživatele
+podle poslaného `admin_id` a ověří, že má roli `admin` (viz K5).
+
 ```mermaid
 flowchart TD
     A[Admin otevře správu uživatelů] --> B[Systém zobrazí seznam uživatelů]
     B --> C{Jaká akce?}
-    C -- Vytvořit --> D[Zadat údaje nového uživatele]
-    C -- Upravit --> E[Změnit údaje uživatele]
-    C -- Zablokovat --> F[Nastavit uživatele jako zablokovaného]
-    D --> G[Uložit změny do databáze]
-    E --> G
-    F --> G
-    G --> H[Konec]
+    C -- Vytvořit --> D[Zadat jméno a roli nového uživatele]
+    C -- Zablokovat/odblokovat --> E[Přepnout příznak zablokován]
+    D --> F{Je volající admin?}
+    E --> F
+    F -- Ne --> G[Odmítnout - HTTP 400]
+    F -- Ano --> H[Uložit změny do databáze]
+    H --> I[Konec]
 ```
 
 ### 1.3.5 Správa oprávnění (admin)
@@ -178,8 +196,8 @@ flowchart TD
 flowchart TD
     A[Admin vybere uživatele] --> B[Zobrazit aktuální roli]
     B --> C[Vybrat novou roli]
-    C --> D{Je změna platná?}
-    D -- Ne --> E[Zobrazit chybu]
+    C --> D{Je volající admin a role platná?}
+    D -- Ne --> E[Odmítnout - HTTP 400]
     D -- Ano --> F[Uložit novou roli]
     F --> G[Konec]
 ```
@@ -227,6 +245,43 @@ flowchart TD
     I --> J[Konec]
 ```
 
+### 1.3.9 Ukončení jízdy - spotřeba baterie a automatický přesun do servisu
+
+Rozšiřuje krok "ukončí jízdu" z diagramů 1.3.1/1.3.8 o dvě navazující pravidla
+zavedená dodatečně (feature request - issue #11 - a jeho oprava - bug #14 -,
+konflikt K4 - issue #4).
+
+```mermaid
+flowchart TD
+    A[Uživatel zadá ujetou vzdálenost] --> B{Vzdálenost přesahuje dojezd podle aktuálního nabití?}
+    B -- Ano --> C[Odmítnout - jízda se neukončí]
+    B -- Ne --> D[Zapsat jízdu, snížit nabití o vzdálenost × 0,3 %/km]
+    D --> E{Je nové nabití pod minimem pro rezervaci?}
+    E -- Ano --> F[Vozidlo -> stav Údržba]
+    E -- Ne --> G[Vozidlo -> stav Volné]
+    F --> H{Je účel rezervace testovací?}
+    G --> H
+    H -- Ano --> I[Faktura se nevytváří]
+    H -- Ne --> J[Systém vygeneruje fakturu - FR7]
+    I --> K[Konec]
+    J --> K
+```
+
+### 1.3.10 Správa flotily (admin)
+
+```mermaid
+flowchart TD
+    A[Admin otevře správu flotily] --> B{Jaká akce?}
+    B -- Přidat vozidlo --> C[Zadat název, nabití a polohu]
+    C --> D[Uložit nové vozidlo se stavem Volné]
+    B -- Odebrat vozidlo --> E{Má vozidlo aktivní rezervaci nebo jízdu?}
+    E -- Ano --> F[Odmítnout - vozidlo nelze odebrat]
+    E -- Ne --> G[Smazat vozidlo z flotily]
+    D --> H[Konec]
+    F --> H
+    G --> H
+```
+
 ---
 
 ## 1.4 Funkční požadavky
@@ -245,14 +300,18 @@ Priorita je uvedena podle metody MoSCoW zjednodušené na tři úrovně:
 | FR7 | Systém po ukončení jízdy vygeneruje fakturu. | Vysoká | Scénář (fakturace) | Chybný výpočet ceny | FR6 |
 | FR7a | Testovací jízda technika (viz K3) se nefakturuje. | Střední | Konflikt K3 | Technik zneužije testovací jízdu k běžnému provozu | FR7, FR12 |
 | FR8 | Uživatel může zobrazit historii svých jízd a faktur. | Střední | Scénář (historie jízd) | Únik dat jiného uživatele | FR6, FR7 |
-| FR9 | Admin může spravovat uživatele (vytvořit, upravit, zablokovat). | Vysoká | Scénář (správa uživatelů) | Náhodné zablokování aktivního uživatele | FR1 |
+| FR9 | Admin může spravovat uživatele (vytvořit, zablokovat/odblokovat). | Vysoká | Scénář (správa uživatelů) | Náhodné zablokování aktivního uživatele | FR1 |
 | FR10 | Admin může měnit role a oprávnění uživatelů. | Vysoká | Scénář (oprávnění) | Eskalace oprávnění | FR9 |
 | FR11 | Admin může přidat nebo odebrat vozidlo z flotily. | Střední | Analýza | Odebrání rezervovaného vozidla | FR14 |
 | FR12 | Servisní technik může označit vozidlo do údržby. | Vysoká | Scénář (stav vozidel) | Označení právě používaného vozidla | FR14 |
 | FR13 | Servisní technik může potvrdit nabití a uvolnit vozidlo. | Střední | Analýza | Uvolnění nedostatečně nabitého vozidla | FR12, FR14 |
 | FR14 | Systém sleduje stav každého vozidla (volné / rezervováno / v jízdě / údržba). | Vysoká | Scénář (sledování stavu) | Nekonzistence stavu mezi komponentami | – |
-| FR15 | Po ukončení jízdy se nabití vozidla sníží úměrně ujeté vzdálenosti (výchozí 0,3 %/km). | Střední | Feature request (issue #11) | Nabití nesmí klesnout pod 0 | FR6, FR14 |
+| FR15 | Po ukončení jízdy se nabití vozidla sníží úměrně ujeté vzdálenosti (výchozí 0,3 %/km), nikdy pod 0. | Střední | Feature request (issue #11) | Ujetá vzdálenost mohla přesáhnout fyzicky možný dojezd - nalezeno a opraveno jako bug #14 (kontrola max. dojezdu při ukončení jízdy) | FR6, FR14 |
 | FR16 | Pokud po ukončení jízdy klesne nabití vozidla pod minimum pro rezervaci, systém ho automaticky přepne do stavu "údržba". | Vysoká | Konflikt K4 (issue #4) | Vozidlo zbytečně poslané do servisu kvůli chybě v měření/zaokrouhlení | FR13, FR14, FR15 |
+| FR17 | Uživatel vidí živý odpočet do vypršení své rezervace. | Nízká | UX vylepšení (issue #16) | Nesoulad časové zóny serveru a prohlížeče (opraveno - časy se posílají v UTC) | FR3, FR5 |
+| FR18 | Admin vidí u vozidla ve flotile jméno uživatele, který ho má právě rezervované nebo v jízdě. | Nízká | Feature request (issue #17) | Únik osobních údajů jiného uživatele | FR11, FR14 |
+| FR19 | Admin může zobrazit přehled všech faktur všech uživatelů, filtrovatelný podle uživatele a vozidla. | Střední | Součást issue #5 | Únik fakturačních dat | FR7, FR9 |
+| FR20 | Systém zobrazuje aktuální verzi frontendu a backendu (footer). | Nízká | Provozní požadavek (issue #21) | – | – |
 
 ---
 
@@ -266,6 +325,7 @@ Priorita je uvedena podle metody MoSCoW zjednodušené na tři úrovně:
 | NFR4 | Systém zvládne alespoň 500 souběžných uživatelů. | Nízká | Analýza (škálovatelnost) | Nedostatečné zdroje | – |
 | NFR5 | Osobní údaje budou zpracovány v souladu s GDPR. | Vysoká | Legislativa | Právní postih při porušení | FR8 |
 | NFR6 | Systém bude modulární, aby šel snadno rozšiřovat (viz kap. 6). | Střední | Analýza (udržovatelnost) | Těsná provázanost komponent | – |
+| NFR7 | Data systému přežijí restart nebo rebuild nasazení (Docker). | Vysoká | Provozní požadavek (issue #6) | Ztráta dat při špatně nastaveném volume | – |
 
 ---
 
@@ -309,9 +369,8 @@ z aktuální role uživatele až při fakturaci. Díky tomu je rozhodnutí audit
 zpětně v datech a odolné vůči pozdější změně role uživatele. Testovací jízda se
 v historii jízd zobrazuje stejně jako běžnému uživateli (FR8).
 
-Otevřenou otázkou zůstává autorizace – REST API dnes neověřuje identitu volajícího
-(`uzivatel_id` posílá klient sám), takže rozlišení role je zatím jen na úrovni
-databáze. Řešení autentizace je součástí budoucího jednoduchého frontendu.
+Autorizace podle role (kdo smí co dělat) je vyřešená stejným vzorem jako
+u ostatních rolově omezených akcí v systému - viz K5.
 
 ### K4 – Lze rezervovat vozidlo s nízkým stavem nabití?
 
@@ -327,3 +386,22 @@ pod tuto hranici, systém vozidlo automaticky přepne do stavu "údržba" (míst
 "volné") - není tedy vůbec nabídnuto k další rezervaci s nedostatečným
 nabitím a technik ho uvidí ve svém přehledu vozidel k servisu. Servis pak
 technik ukončí stejným postupem jako u ručně označeného vozidla (FR13).
+
+### K5 – Jak vyřešit přihlášení a autorizaci, když FR1 počítá s registrací a NFR3 s hashovanými hesly?
+
+**Problém:** FR1 předpokládá registraci a přihlášení, NFR3 hashovaná hesla a
+řízení přístupu podle rolí. Skutečná autentizace (hesla, tokeny, session) je
+ale nad rámec rozsahu tohoto zápočtového projektu (issue #3).
+
+**Řešení:** Přihlášení je zjednodušené - uživatel se jen vybere ze seznamu
+(`GET /uzivatele`), žádné heslo se nezadává. Autorizace jednotlivých akcí
+(K1 - správa platnosti rezervace, admin/technik endpointy) se ale řeší
+skutečně, jen jinak než heslem: server si podle `uzivatel_id`/`admin_id`/
+`technik_id` poslaného v požadavku dohledá uživatele v databázi a ověří jeho
+roli, než akci povolí. Neautorizovaný pokus (např. běžný uživatel volající
+administrátorský endpoint) server odmítne s HTTP 400.
+
+Tento model je vědomý kompromis - řeší rozlišení rolí uvnitř aplikace, ale
+neřeší ověření identity (kdokoliv zná cizí `uzivatel_id`, může se za daného
+uživatele "vydávat"). Doplnění skutečné autentizace (hesla/tokeny) zůstává
+navrženou budoucí změnou (viz kap. 6).

@@ -1,7 +1,7 @@
 # 6. Evoluce softwaru
 
-V další iteraci vývoje bude potřeba systém rozšířit. Níže jsou tři navržené změny
-a jejich dopad na architekturu a na implementovanou rezervační komponentu.
+V další iteraci vývoje bude potřeba systém rozšířit. Níže jsou čtyři navržené
+změny a jejich dopad na architekturu a na implementovanou rezervační komponentu.
 
 Klíčové zjištění: díky zvolené **vrstvené architektuře** a tomu, že ostatní části
 (fakturace, mapa, notifikace) jsou volané přes jasně dané rozhraní, se u většiny
@@ -62,13 +62,37 @@ uživatele.
 
 **Náročnost:** střední.
 
-## 6.4 Shrnutí dopadů
+## 6.4 Změna 4 – Skutečná autentizace (hesla/tokeny)
+
+**Popis:** Zjednodušené přihlášení (K5 - výběr uživatele bez hesla) se nahradí
+skutečnou autentizací - hesla (hashovaná, NFR3), přihlašovací tokeny/session a
+ověření identity volajícího na úrovni REST API, ne jen role podle poslaného ID.
+
+**Dopad na architekturu:**
+- Přibude ověřování požadavků (middleware/dependency ve FastAPI), který token
+  ověří a teprve pak předá požadavek endpointu.
+- Frontend potřebuje uchovávat token místo prostého záznamu o vybraném
+  uživateli (`localStorage`).
+
+**Dopad na kód:**
+- V `database.py` přibude sloupec s hashem hesla u uživatele.
+- V `main.py` přibude přihlašovací endpoint a ověřovací vrstva.
+- **Rezervační služba se nemění vůbec** - kontroly rolí (`_ma_roli` a
+  podobné) už dnes pracují s `uzivatel_id` nezávisle na tom, jak byla
+  identita ověřena; jen se zpřísní to, odkud se `uzivatel_id` bere (z
+  ověřeného tokenu, ne přímo z těla požadavku).
+
+**Náročnost:** střední (hlavně bezpečnostní aspekty - úložiště hesel, expirace
+tokenů, ochrana proti zneužití).
+
+## 6.5 Shrnutí dopadů
 
 | Změna | Hlavní zásah | Rezervační služba | Náročnost |
 |-------|--------------|-------------------|-----------|
 | Firemní správce | databáze + fakturace | malá úprava (oprávnění) | střední |
 | Platební brána | billing.py | beze změny | střední |
 | Reálná mapa | maps.py | volitelné rozšíření | střední |
+| Skutečná autentizace | main.py + databáze | beze změny | střední |
 
 Žádná ze změn nevyžaduje přepsání jádra systému. To potvrzuje, že vrstvená
 architektura s oddělenými komponentami byla pro tento systém dobrá volba a

@@ -15,8 +15,10 @@ implementaci klíčové komponenty s REST API, testování a návrh evoluce syst
 5. Testování softwaru – implementované testy a testovací plán
 6. Evoluce softwaru – návrh budoucích změn
 
-**Technologie:** Python 3.12, FastAPI, SQLite. Kód je v adresáři `src/`,
-spustitelná konzolová ukázka `src/console_demo.py`, REST API `src/main.py`.
+**Technologie:** Python 3.12, FastAPI, SQLite, vanilla JS/nginx (frontend),
+Docker Compose (nasazení). Backend je v adresáři `src/` (spustitelná
+konzolová ukázka `src/console_demo.py`, REST API `src/main.py`), webový
+frontend v adresáři `frontend/`.
 
 ---
 

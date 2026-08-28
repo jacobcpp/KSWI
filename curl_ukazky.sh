@@ -35,3 +35,24 @@ echo "### 7) Zmena platnosti rezervace na 45 minut (admin, uzivatel 2)"
 curl -s -X POST $ZAKLAD/nastaveni/platnost-rezervace \
      -H "Content-Type: application/json" \
      -d '{"uzivatel_id":2,"minuty":45}'; echo
+
+echo "### 8) Verze backendu"
+curl -s $ZAKLAD/verze; echo
+
+echo "### 9) Admin (uzivatel 2) vytvori noveho uzivatele"
+curl -s -X POST $ZAKLAD/admin/uzivatele \
+     -H "Content-Type: application/json" \
+     -d '{"admin_id":2,"jmeno":"Nova Novakova","role":"uzivatel"}'; echo
+
+echo "### 10) Technik (uzivatel 3) oznaci vozidlo 1 do servisu"
+curl -s -X POST $ZAKLAD/vozidla/1/udrzba \
+     -H "Content-Type: application/json" \
+     -d '{"technik_id":3}'; echo
+
+echo "### 11) Bezny uzivatel (1) zkusi totez - ma byt odmitnuto"
+curl -s -X POST $ZAKLAD/vozidla/1/udrzba \
+     -H "Content-Type: application/json" \
+     -d '{"technik_id":1}'; echo
+
+echo "### 12) Admin (2) vidi vsechny faktury"
+curl -s "$ZAKLAD/admin/faktury?admin_id=2"; echo
