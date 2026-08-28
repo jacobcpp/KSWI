@@ -16,7 +16,11 @@ import database
 from reservation_service import RezervacniSluzba
 
 
-app = FastAPI(title="Carsharing API")
+# Verze backendu (SemVer) - viz issue #21. Zvysuje se rucne: MINOR za novou
+# funkcionalitu, PATCH za bugfix, nezavisle na verzi frontendu.
+VERZE = "0.1.0"
+
+app = FastAPI(title="Carsharing API", version=VERZE)
 
 # Frontend bezi na jinem originu (jiny kontejner/port), takze potrebuje CORS.
 # Zadna autentizace se neresi - viz issue #3 a otevrena otazka u K3 v reportu.
@@ -117,6 +121,12 @@ class UkonceniServisuVstup(BaseModel):
 
 
 # ---------- Endpointy ----------
+
+@app.get("/verze")
+def verze():
+    # Pro footer frontendu (issue #21), aby slo poznat, co je zrovna spustene.
+    return {"verze": VERZE}
+
 
 @app.get("/uzivatele")
 def seznam_uzivatelu():
