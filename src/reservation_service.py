@@ -13,8 +13,9 @@ import notifications
 
 
 # Konstanty vychazejici z analyzy konfliktnich pozadavku:
-MIN_NABITI_PROCENT = 20        # K4: vozidlo pod touto urovni nelze rezervovat
-PLATNOST_REZERVACE_MINUT = 15  # K1: jak dlouho rezervace drzi vozidlo
+MIN_NABITI_PROCENT = 20                # K4: vozidlo pod touto urovni nelze rezervovat
+PLATNOST_REZERVACE_MINUT_VYCHOZI = 30  # K1: vychozi platnost rezervace, meni jen admin
+KLIC_PLATNOST_REZERVACE = "platnost_rezervace_minut"
 
 
 class RezervacniSluzba:
@@ -27,16 +28,61 @@ class RezervacniSluzba:
     # ---------- Zobrazeni dostupnych vozidel ----------
 
     def zobraz_dostupna_vozidla(self):
-        # Nacte volna vozidla a preda je mapove sluzbe k zobrazeni.
+        # Nejdriv uklidime prosle rezervace, aby se jejich vozidla ukazala
+        # jako volna (K1), a az pak nacteme volna vozidla pro mapovou sluzbu.
+        self.over_a_vyprsele_rezervace()
         vozidla = database.ziskej_dostupna_vozidla(self.spojeni)
         maps.zobraz_na_mape(vozidla)
         return vozidla
+
+    # ---------- Nastaveni platnosti rezervace (K1) ----------
+
+    def ziskej_platnost_rezervace_minut(self):
+        # Vrati aktualne nastavenou platnost rezervace v minutach (int).
+        hodnota = database.ziskej_nastaveni(self.spojeni, KLIC_PLATNOST_REZERVACE,
+                                            PLATNOST_REZERVACE_MINUT_VYCHOZI)
+        return int(hodnota)
+
+    def nastav_platnost_rezervace(self, uzivatel_id, minuty):
+        # Zmenu limitu smi provest jen administrator.
+        uzivatel = database.ziskej_uzivatele(self.spojeni, uzivatel_id)
+        if uzivatel is None:
+            return {"ok": False, "zprava": "Uzivatel neexistuje."}
+
+        if uzivatel["role"] != "admin":
+            return {"ok": False, "zprava": "Pouze administrator muze menit platnost rezervace."}
+
+        if minuty <= 0:
+            return {"ok": False, "zprava": "Platnost rezervace musi byt kladne cislo."}
+
+        database.uloz_nastaveni(self.spojeni, KLIC_PLATNOST_REZERVACE, minuty)
+        return {"ok": True, "zprava": "Platnost rezervace byla zmenena."}
+
+    # ---------- Uklizeni prosly rezervaci ----------
+
+    def over_a_vyprsele_rezervace(self):
+        # Projde aktivni rezervace a ty, kterym vyprsela platnost, automaticky
+        # zrusi a uvolni jejich vozidlo (K1 / FR5).
+        aktivni_rezervace = database.ziskej_aktivni_rezervace(self.spojeni)
+        ted = datetime.now()
+
+        for rezervace in aktivni_rezervace:
+            platnost_do = datetime.fromisoformat(rezervace["platnost_do"])
+            if ted > platnost_do:
+                database.nastav_stav_rezervace(self.spojeni, rezervace["id"], "vyprsela")
+                database.nastav_stav_vozidla(self.spojeni, rezervace["vozidlo_id"], "volne")
+                notifications.posli(rezervace["uzivatel_id"],
+                                    "Vase rezervace vyprsela a byla zrusena.")
 
     # ---------- Rezervace vozidla ----------
 
     def vytvor_rezervaci(self, uzivatel_id, vozidlo_id):
         # Overi vsechny podminky a vytvori rezervaci.
         # Vraci slovnik s vysledkem, aby ho slo pouzit v API i v konzoli.
+
+        # Nejdriv uklidime prosle rezervace, aby se pripadne uvolnilo
+        # vozidlo, o ktere ma uzivatel zajem (K1).
+        self.over_a_vyprsele_rezervace()
 
         uzivatel = database.ziskej_uzivatele(self.spojeni, uzivatel_id)
         if uzivatel is None:
@@ -61,8 +107,9 @@ class RezervacniSluzba:
         # Overeni polohy pres mapovou sluzbu.
         maps.over_dostupnost(vozidlo)
 
-        # Vypocet platnosti rezervace (K1).
-        platnost_do = datetime.now() + timedelta(minutes=PLATNOST_REZERVACE_MINUT)
+        # Vypocet platnosti rezervace (K1) - limit je konfigurovatelny administratorem.
+        platnost_minut = self.ziskej_platnost_rezervace_minut()
+        platnost_do = datetime.now() + timedelta(minutes=platnost_minut)
         platnost_do_text = platnost_do.isoformat()
 
         # Ulozeni rezervace a zmena stavu vozidla.

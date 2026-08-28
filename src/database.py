@@ -75,6 +75,15 @@ def vytvor_tabulky(spojeni):
         )
     """)
 
+    # Nastaveni systemu (klic - hodnota). Pouziva se napr. pro K1 -
+    # platnost rezervace, kterou smi menit jen admin.
+    kurzor.execute("""
+        CREATE TABLE IF NOT EXISTS nastaveni (
+            klic TEXT PRIMARY KEY,
+            hodnota TEXT NOT NULL
+        )
+    """)
+
     spojeni.commit()
 
 
@@ -193,6 +202,35 @@ def ziskej_historii_jizd(spojeni, uzivatel_id):
     kurzor = spojeni.cursor()
     kurzor.execute("SELECT * FROM jizdy WHERE uzivatel_id = ?", (uzivatel_id,))
     return kurzor.fetchall()
+
+
+# ---------- Funkce pro aktivni rezervace ----------
+
+def ziskej_aktivni_rezervace(spojeni):
+    # Vrati vsechny rezervace, ktere jeste nebyly zruseny/vyprsely/dokonceny.
+    kurzor = spojeni.cursor()
+    kurzor.execute("SELECT * FROM rezervace WHERE stav = ?", ("aktivni",))
+    return kurzor.fetchall()
+
+
+# ---------- Funkce pro nastaveni ----------
+
+def ziskej_nastaveni(spojeni, klic, vychozi):
+    kurzor = spojeni.cursor()
+    kurzor.execute("SELECT hodnota FROM nastaveni WHERE klic = ?", (klic,))
+    radek = kurzor.fetchone()
+    if radek is None:
+        return vychozi
+    return radek["hodnota"]
+
+
+def uloz_nastaveni(spojeni, klic, hodnota):
+    kurzor = spojeni.cursor()
+    kurzor.execute("""
+        INSERT INTO nastaveni (klic, hodnota) VALUES (?, ?)
+        ON CONFLICT(klic) DO UPDATE SET hodnota = excluded.hodnota
+    """, (klic, str(hodnota)))
+    spojeni.commit()
 
 
 # ---------- Funkce pro faktury ----------
