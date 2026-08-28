@@ -119,6 +119,13 @@ def ziskej_uzivatele(spojeni, uzivatel_id):
     return kurzor.fetchone()
 
 
+def ziskej_vsechny_uzivatele(spojeni):
+    # Pouziva se pro vyber uzivatele na prihlasovaci obrazovce frontendu.
+    kurzor = spojeni.cursor()
+    kurzor.execute("SELECT * FROM uzivatele")
+    return kurzor.fetchall()
+
+
 # ---------- Funkce pro vozidla ----------
 
 def ziskej_vozidlo(spojeni, vozidlo_id):

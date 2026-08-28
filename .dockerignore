@@ -1,0 +1,7 @@
+.git
+frontend
+report
+*.md
+src/__pycache__
+src/.pytest_cache
+src/carsharing_api.db
