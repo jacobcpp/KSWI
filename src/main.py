@@ -74,6 +74,43 @@ class PlatnostRezervaceVstup(BaseModel):
     minuty: int
 
 
+class NovyUzivatelVstup(BaseModel):
+    admin_id: int
+    jmeno: str
+    role: str
+
+
+class ZablokovaniVstup(BaseModel):
+    admin_id: int
+    zablokovan: bool
+
+
+class RoleVstup(BaseModel):
+    admin_id: int
+    role: str
+
+
+class NoveVozidloVstup(BaseModel):
+    admin_id: int
+    nazev: str
+    nabiti: int
+    lat: float
+    lon: float
+
+
+class OdebraniVozidlaVstup(BaseModel):
+    admin_id: int
+
+
+class OznaceniUdrzbyVstup(BaseModel):
+    technik_id: int
+
+
+class UkonceniServisuVstup(BaseModel):
+    technik_id: int
+    nabiti: int
+
+
 # ---------- Endpointy ----------
 
 @app.get("/uzivatele")
@@ -182,6 +219,126 @@ def historie(uzivatel_id: int):
             "ujeto_km": jizda["ujeto_km"],
             "cas_start": jizda["cas_start"],
             "cas_konec": jizda["cas_konec"],
+            "ucel": jizda["ucel"],
         })
 
+    return vysledek
+
+
+# ---------- Admin: sprava uzivatelu ----------
+
+@app.post("/admin/uzivatele")
+def vytvor_uzivatele(vstup: NovyUzivatelVstup):
+    sluzba = ziskej_sluzbu()
+    vysledek = sluzba.vytvor_uzivatele(vstup.admin_id, vstup.jmeno, vstup.role)
+    sluzba.spojeni.close()
+    if vysledek["ok"] == False:
+        raise HTTPException(status_code=400, detail=vysledek["zprava"])
+    return vysledek
+
+
+@app.post("/admin/uzivatele/{uzivatel_id}/zablokovani")
+def nastav_zablokovani(uzivatel_id: int, vstup: ZablokovaniVstup):
+    sluzba = ziskej_sluzbu()
+    vysledek = sluzba.nastav_zablokovani_uzivatele(vstup.admin_id, uzivatel_id, vstup.zablokovan)
+    sluzba.spojeni.close()
+    if vysledek["ok"] == False:
+        raise HTTPException(status_code=400, detail=vysledek["zprava"])
+    return vysledek
+
+
+@app.post("/admin/uzivatele/{uzivatel_id}/role")
+def zmen_roli(uzivatel_id: int, vstup: RoleVstup):
+    sluzba = ziskej_sluzbu()
+    vysledek = sluzba.zmen_roli_uzivatele(vstup.admin_id, uzivatel_id, vstup.role)
+    sluzba.spojeni.close()
+    if vysledek["ok"] == False:
+        raise HTTPException(status_code=400, detail=vysledek["zprava"])
+    return vysledek
+
+
+# ---------- Admin: sprava vozidel a prehled faktur ----------
+
+@app.post("/admin/vozidla")
+def pridej_vozidlo(vstup: NoveVozidloVstup):
+    sluzba = ziskej_sluzbu()
+    vysledek = sluzba.pridej_vozidlo(vstup.admin_id, vstup.nazev, vstup.nabiti, vstup.lat, vstup.lon)
+    sluzba.spojeni.close()
+    if vysledek["ok"] == False:
+        raise HTTPException(status_code=400, detail=vysledek["zprava"])
+    return vysledek
+
+
+@app.post("/admin/vozidla/{vozidlo_id}/odebrani")
+def odeber_vozidlo(vozidlo_id: int, vstup: OdebraniVozidlaVstup):
+    sluzba = ziskej_sluzbu()
+    vysledek = sluzba.odeber_vozidlo(vstup.admin_id, vozidlo_id)
+    sluzba.spojeni.close()
+    if vysledek["ok"] == False:
+        raise HTTPException(status_code=400, detail=vysledek["zprava"])
+    return vysledek
+
+
+@app.get("/vozidla/vsechna")
+def vsechna_vozidla(uzivatel_id: int):
+    # Pro admina (sprava flotily) a technika (prehled pro servis) - narozdil
+    # od GET /vozidla vraci vozidla ve vsech stavech, ne jen volna.
+    sluzba = ziskej_sluzbu()
+    vysledek = sluzba.vsechna_vozidla(uzivatel_id)
+    sluzba.spojeni.close()
+    if vysledek["ok"] == False:
+        raise HTTPException(status_code=400, detail=vysledek["zprava"])
+
+    return [
+        {
+            "id": vozidlo["id"],
+            "nazev": vozidlo["nazev"],
+            "stav": vozidlo["stav"],
+            "nabiti": vozidlo["nabiti"],
+            "lat": vozidlo["lat"],
+            "lon": vozidlo["lon"],
+        }
+        for vozidlo in vysledek["vozidla"]
+    ]
+
+
+@app.get("/admin/faktury")
+def vsechny_faktury(admin_id: int):
+    sluzba = ziskej_sluzbu()
+    vysledek = sluzba.vsechny_faktury(admin_id)
+    sluzba.spojeni.close()
+    if vysledek["ok"] == False:
+        raise HTTPException(status_code=400, detail=vysledek["zprava"])
+
+    return [
+        {
+            "faktura_id": faktura["id"],
+            "jizda_id": faktura["jizda_id"],
+            "uzivatel_id": faktura["uzivatel_id"],
+            "uzivatel_jmeno": faktura["uzivatel_jmeno"],
+            "castka": faktura["castka"],
+        }
+        for faktura in vysledek["faktury"]
+    ]
+
+
+# ---------- Technik: servis vozidla ----------
+
+@app.post("/vozidla/{vozidlo_id}/udrzba")
+def oznac_udrzbu(vozidlo_id: int, vstup: OznaceniUdrzbyVstup):
+    sluzba = ziskej_sluzbu()
+    vysledek = sluzba.oznac_vozidlo_pro_udrzbu(vstup.technik_id, vozidlo_id)
+    sluzba.spojeni.close()
+    if vysledek["ok"] == False:
+        raise HTTPException(status_code=400, detail=vysledek["zprava"])
+    return vysledek
+
+
+@app.post("/vozidla/{vozidlo_id}/ukonceni-servisu")
+def ukonci_servis(vozidlo_id: int, vstup: UkonceniServisuVstup):
+    sluzba = ziskej_sluzbu()
+    vysledek = sluzba.ukonci_servis(vstup.technik_id, vozidlo_id, vstup.nabiti)
+    sluzba.spojeni.close()
+    if vysledek["ok"] == False:
+        raise HTTPException(status_code=400, detail=vysledek["zprava"])
     return vysledek

@@ -193,6 +193,106 @@ def test_testovaci_jizda_technika_negeneruje_fakturu():
     assert historie[0]["id"] == jizda["jizda_id"]
 
 
+def test_admin_muze_vytvorit_uzivatele():
+    sluzba = priprav_sluzbu()
+    vysledek = sluzba.vytvor_uzivatele(2, "Nova Novakova", "uzivatel")
+
+    assert vysledek["ok"] == True
+    novy = database.ziskej_uzivatele(sluzba.spojeni, vysledek["uzivatel_id"])
+    assert novy["jmeno"] == "Nova Novakova"
+    assert novy["role"] == "uzivatel"
+
+
+def test_bezny_uzivatel_nemuze_vytvorit_uzivatele():
+    sluzba = priprav_sluzbu()
+    vysledek = sluzba.vytvor_uzivatele(1, "Falesny Admin", "admin")
+
+    assert vysledek["ok"] == False
+
+
+def test_admin_muze_zablokovat_a_odblokovat_uzivatele():
+    sluzba = priprav_sluzbu()
+    vysledek = sluzba.nastav_zablokovani_uzivatele(2, 1, True)
+    assert vysledek["ok"] == True
+    assert database.ziskej_uzivatele(sluzba.spojeni, 1)["zablokovan"] == 1
+
+    vysledek = sluzba.nastav_zablokovani_uzivatele(2, 1, False)
+    assert vysledek["ok"] == True
+    assert database.ziskej_uzivatele(sluzba.spojeni, 1)["zablokovan"] == 0
+
+
+def test_admin_muze_zmenit_roli_uzivatele():
+    sluzba = priprav_sluzbu()
+    vysledek = sluzba.zmen_roli_uzivatele(2, 1, "technik")
+
+    assert vysledek["ok"] == True
+    assert database.ziskej_uzivatele(sluzba.spojeni, 1)["role"] == "technik"
+
+
+def test_admin_muze_pridat_a_odebrat_vozidlo():
+    sluzba = priprav_sluzbu()
+    vysledek = sluzba.pridej_vozidlo(2, "Auto D", 60, 50.1, 14.4)
+    assert vysledek["ok"] == True
+
+    vozidlo_id = vysledek["vozidlo_id"]
+    assert database.ziskej_vozidlo(sluzba.spojeni, vozidlo_id)["stav"] == "volne"
+
+    vysledek = sluzba.odeber_vozidlo(2, vozidlo_id)
+    assert vysledek["ok"] == True
+    assert database.ziskej_vozidlo(sluzba.spojeni, vozidlo_id) is None
+
+
+def test_nelze_odebrat_vozidlo_s_aktivni_rezervaci():
+    sluzba = priprav_sluzbu()
+    sluzba.vytvor_rezervaci(1, 1)
+
+    vysledek = sluzba.odeber_vozidlo(2, 1)
+    assert vysledek["ok"] == False
+    assert database.ziskej_vozidlo(sluzba.spojeni, 1) is not None
+
+
+def test_admin_vidi_vsechny_faktury():
+    sluzba = priprav_sluzbu()
+    rezervace = sluzba.vytvor_rezervaci(1, 1)
+    jizda = sluzba.zahaj_jizdu(rezervace["rezervace_id"])
+    sluzba.ukonci_jizdu(jizda["jizda_id"], 10)
+
+    vysledek = sluzba.vsechny_faktury(2)
+    assert vysledek["ok"] == True
+    assert len(vysledek["faktury"]) == 1
+    assert vysledek["faktury"][0]["uzivatel_jmeno"] == "Jan Novak"
+
+
+def test_technik_muze_oznacit_a_ukoncit_servis():
+    sluzba = priprav_sluzbu()
+    vysledek = sluzba.oznac_vozidlo_pro_udrzbu(3, 1)
+    assert vysledek["ok"] == True
+    assert database.ziskej_vozidlo(sluzba.spojeni, 1)["stav"] == "udrzba"
+
+    vysledek = sluzba.ukonci_servis(3, 1, 90)
+    assert vysledek["ok"] == True
+    vozidlo = database.ziskej_vozidlo(sluzba.spojeni, 1)
+    assert vozidlo["stav"] == "volne"
+    assert vozidlo["nabiti"] == 90
+
+
+def test_ukonceni_servisu_s_nizkym_nabitim_necha_vozidlo_v_udrzbe():
+    sluzba = priprav_sluzbu()
+    sluzba.oznac_vozidlo_pro_udrzbu(3, 1)
+
+    vysledek = sluzba.ukonci_servis(3, 1, 10)
+    assert vysledek["ok"] == True
+    assert database.ziskej_vozidlo(sluzba.spojeni, 1)["stav"] == "udrzba"
+
+
+def test_bezny_uzivatel_nemuze_oznacit_vozidlo_do_servisu():
+    sluzba = priprav_sluzbu()
+    vysledek = sluzba.oznac_vozidlo_pro_udrzbu(1, 1)
+
+    assert vysledek["ok"] == False
+    assert database.ziskej_vozidlo(sluzba.spojeni, 1)["stav"] == "volne"
+
+
 # ---------- Integracni testy ----------
 
 def test_cely_tok_rezervace_az_faktura():

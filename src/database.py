@@ -126,6 +126,27 @@ def ziskej_vsechny_uzivatele(spojeni):
     return kurzor.fetchall()
 
 
+def vytvor_uzivatele(spojeni, jmeno, role):
+    kurzor = spojeni.cursor()
+    kurzor.execute("INSERT INTO uzivatele (jmeno, role, zablokovan) VALUES (?, ?, 0)",
+                   (jmeno, role))
+    spojeni.commit()
+    return kurzor.lastrowid
+
+
+def nastav_zablokovani_uzivatele(spojeni, uzivatel_id, zablokovan):
+    kurzor = spojeni.cursor()
+    kurzor.execute("UPDATE uzivatele SET zablokovan = ? WHERE id = ?",
+                   (1 if zablokovan else 0, uzivatel_id))
+    spojeni.commit()
+
+
+def nastav_roli_uzivatele(spojeni, uzivatel_id, role):
+    kurzor = spojeni.cursor()
+    kurzor.execute("UPDATE uzivatele SET role = ? WHERE id = ?", (role, uzivatel_id))
+    spojeni.commit()
+
+
 # ---------- Funkce pro vozidla ----------
 
 def ziskej_vozidlo(spojeni, vozidlo_id):
@@ -141,6 +162,13 @@ def ziskej_dostupna_vozidla(spojeni):
     return kurzor.fetchall()
 
 
+def ziskej_vsechna_vozidla(spojeni):
+    # Pouziva admin (sprava flotily) a technik (prehled pro servis).
+    kurzor = spojeni.cursor()
+    kurzor.execute("SELECT * FROM vozidla")
+    return kurzor.fetchall()
+
+
 def nastav_stav_vozidla(spojeni, vozidlo_id, novy_stav):
     kurzor = spojeni.cursor()
     kurzor.execute("UPDATE vozidla SET stav = ? WHERE id = ?", (novy_stav, vozidlo_id))
@@ -150,6 +178,21 @@ def nastav_stav_vozidla(spojeni, vozidlo_id, novy_stav):
 def nastav_nabiti_vozidla(spojeni, vozidlo_id, nabiti):
     kurzor = spojeni.cursor()
     kurzor.execute("UPDATE vozidla SET nabiti = ? WHERE id = ?", (nabiti, vozidlo_id))
+    spojeni.commit()
+
+
+def pridej_vozidlo(spojeni, nazev, nabiti, lat, lon):
+    kurzor = spojeni.cursor()
+    kurzor.execute("""
+        INSERT INTO vozidla (nazev, stav, nabiti, lat, lon) VALUES (?, 'volne', ?, ?, ?)
+    """, (nazev, nabiti, lat, lon))
+    spojeni.commit()
+    return kurzor.lastrowid
+
+
+def odeber_vozidlo(spojeni, vozidlo_id):
+    kurzor = spojeni.cursor()
+    kurzor.execute("DELETE FROM vozidla WHERE id = ?", (vozidlo_id,))
     spojeni.commit()
 
 
@@ -208,9 +251,15 @@ def ukonci_jizdu_v_databazi(spojeni, jizda_id, ujeto_km):
 
 
 def ziskej_historii_jizd(spojeni, uzivatel_id):
-    # Vrati vsechny jizdy daneho uzivatele.
+    # Vrati vsechny jizdy daneho uzivatele, vcetne ucelu rezervace
+    # (bezna/testovaci, viz K3), aby to slo v UI rozlisit.
     kurzor = spojeni.cursor()
-    kurzor.execute("SELECT * FROM jizdy WHERE uzivatel_id = ?", (uzivatel_id,))
+    kurzor.execute("""
+        SELECT jizdy.*, rezervace.ucel AS ucel
+        FROM jizdy
+        JOIN rezervace ON rezervace.id = jizdy.rezervace_id
+        WHERE jizdy.uzivatel_id = ?
+    """, (uzivatel_id,))
     return kurzor.fetchall()
 
 
@@ -256,4 +305,17 @@ def uloz_fakturu(spojeni, jizda_id, uzivatel_id, castka):
 def ziskej_faktury_uzivatele(spojeni, uzivatel_id):
     kurzor = spojeni.cursor()
     kurzor.execute("SELECT * FROM faktury WHERE uzivatel_id = ?", (uzivatel_id,))
+    return kurzor.fetchall()
+
+
+def ziskej_vsechny_faktury(spojeni):
+    # Prehled pro admina - faktury vsech uzivatelu, se jmenem pro citelnost.
+    kurzor = spojeni.cursor()
+    kurzor.execute("""
+        SELECT faktury.id, faktury.jizda_id, faktury.uzivatel_id, faktury.castka,
+               uzivatele.jmeno AS uzivatel_jmeno
+        FROM faktury
+        JOIN uzivatele ON uzivatele.id = faktury.uzivatel_id
+        ORDER BY faktury.id
+    """)
     return kurzor.fetchall()

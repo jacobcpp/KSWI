@@ -36,4 +36,26 @@ const Api = {
     ukonciJizdu: (jizdaId, ujetoKm) =>
         apiPost(`/jizdy/${jizdaId}/ukonceni`, { ujeto_km: ujetoKm }),
     historie: (uzivatelId) => apiGet(`/uzivatele/${uzivatelId}/historie`),
+
+    // ---------- Admin: sprava uzivatelu, vozidel, faktury ----------
+    vytvorUzivatele: (adminId, jmeno, role) =>
+        apiPost("/admin/uzivatele", { admin_id: adminId, jmeno, role }),
+    nastavZablokovani: (adminId, uzivatelId, zablokovan) =>
+        apiPost(`/admin/uzivatele/${uzivatelId}/zablokovani`, { admin_id: adminId, zablokovan }),
+    zmenRoli: (adminId, uzivatelId, role) =>
+        apiPost(`/admin/uzivatele/${uzivatelId}/role`, { admin_id: adminId, role }),
+    pridejVozidlo: (adminId, nazev, nabiti, lat, lon) =>
+        apiPost("/admin/vozidla", { admin_id: adminId, nazev, nabiti, lat, lon }),
+    odeberVozidlo: (adminId, vozidloId) =>
+        apiPost(`/admin/vozidla/${vozidloId}/odebrani`, { admin_id: adminId }),
+    vsechnyFaktury: (adminId) => apiGet(`/admin/faktury?admin_id=${adminId}`),
+
+    // ---------- Admin + technik: prehled cele floty ----------
+    vsechnaVozidla: (uzivatelId) => apiGet(`/vozidla/vsechna?uzivatel_id=${uzivatelId}`),
+
+    // ---------- Technik: servis vozidla ----------
+    oznacUdrzbu: (technikId, vozidloId) =>
+        apiPost(`/vozidla/${vozidloId}/udrzba`, { technik_id: technikId }),
+    ukonciServis: (technikId, vozidloId, nabiti) =>
+        apiPost(`/vozidla/${vozidloId}/ukonceni-servisu`, { technik_id: technikId, nabiti }),
 };
