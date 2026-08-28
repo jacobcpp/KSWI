@@ -50,7 +50,8 @@ def vytvor_tabulky(spojeni):
             uzivatel_id INTEGER NOT NULL,
             stav TEXT NOT NULL,
             cas_vytvoreni TEXT NOT NULL,
-            platnost_do TEXT NOT NULL
+            platnost_do TEXT NOT NULL,
+            ucel TEXT NOT NULL DEFAULT 'bezna'
         )
     """)
 
@@ -138,13 +139,15 @@ def nastav_nabiti_vozidla(spojeni, vozidlo_id, nabiti):
 
 # ---------- Funkce pro rezervace ----------
 
-def uloz_rezervaci(spojeni, vozidlo_id, uzivatel_id, platnost_do):
+def uloz_rezervaci(spojeni, vozidlo_id, uzivatel_id, platnost_do, ucel="bezna"):
+    # ucel ("bezna"/"testovaci") se urcuje jednou pri vytvoreni rezervace
+    # a zustava u ni ulozeny - viz konflikt K3 (testovaci jizda technika).
     kurzor = spojeni.cursor()
     cas = datetime.now().isoformat()
     kurzor.execute("""
-        INSERT INTO rezervace (vozidlo_id, uzivatel_id, stav, cas_vytvoreni, platnost_do)
-        VALUES (?, ?, ?, ?, ?)
-    """, (vozidlo_id, uzivatel_id, "aktivni", cas, platnost_do))
+        INSERT INTO rezervace (vozidlo_id, uzivatel_id, stav, cas_vytvoreni, platnost_do, ucel)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (vozidlo_id, uzivatel_id, "aktivni", cas, platnost_do, ucel))
     spojeni.commit()
     return kurzor.lastrowid
 
