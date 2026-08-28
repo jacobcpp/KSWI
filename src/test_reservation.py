@@ -74,6 +74,67 @@ def test_zruseni_rezervace_uvolni_vozidlo():
     assert vozidlo["stav"] == "volne"
 
 
+def test_vychozi_platnost_rezervace_je_30_minut():
+    # K1: vychozi limit je 30 minut, dokud ho admin nezmeni.
+    sluzba = priprav_sluzbu()
+    assert sluzba.ziskej_platnost_rezervace_minut() == 30
+
+
+def test_admin_muze_zmenit_platnost_rezervace():
+    # Uzivatel 2 je v ukazkovych datech admin.
+    sluzba = priprav_sluzbu()
+    vysledek = sluzba.nastav_platnost_rezervace(2, 45)
+
+    assert vysledek["ok"] == True
+    assert sluzba.ziskej_platnost_rezervace_minut() == 45
+
+
+def test_bezny_uzivatel_nemuze_zmenit_platnost_rezervace():
+    # Uzivatel 1 je bezny uzivatel, zmena mu musi byt odepnuta.
+    sluzba = priprav_sluzbu()
+    vysledek = sluzba.nastav_platnost_rezervace(1, 45)
+
+    assert vysledek["ok"] == False
+    assert sluzba.ziskej_platnost_rezervace_minut() == 30
+
+
+def test_nova_rezervace_pouziva_zmeneny_limit():
+    # Po zmene limitu administratorem se novy limit projevi v nove rezervaci.
+    sluzba = priprav_sluzbu()
+    sluzba.nastav_platnost_rezervace(2, 45)
+
+    rezervace = sluzba.vytvor_rezervaci(1, 1)
+    ulozena = database.ziskej_rezervaci(sluzba.spojeni, rezervace["rezervace_id"])
+
+    ocekavana_platnost = datetime.now() + timedelta(minutes=45)
+    skutecna_platnost = datetime.fromisoformat(ulozena["platnost_do"])
+    # Porovnavame s tolerenci nekolika sekund kvuli behu testu.
+    assert abs((skutecna_platnost - ocekavana_platnost).total_seconds()) < 5
+
+
+def test_vyprsela_rezervace_uvolni_vozidlo_bez_zahajeni_jizdy():
+    # K1: vozidlo se uvolni automaticky, i kdyz nikdo nezavola zahaj_jizdu
+    # na konkretni rezervaci - staci, ze se sahne na dostupna vozidla.
+    sluzba = priprav_sluzbu()
+    rezervace = sluzba.vytvor_rezervaci(1, 1)
+    rezervace_id = rezervace["rezervace_id"]
+
+    minulost = (datetime.now() - timedelta(minutes=1)).isoformat()
+    kurzor = sluzba.spojeni.cursor()
+    kurzor.execute("UPDATE rezervace SET platnost_do = ? WHERE id = ?",
+                   (minulost, rezervace_id))
+    sluzba.spojeni.commit()
+
+    vozidla = sluzba.zobraz_dostupna_vozidla()
+    assert any(vozidlo["id"] == 1 for vozidlo in vozidla)
+
+    vozidlo = database.ziskej_vozidlo(sluzba.spojeni, 1)
+    assert vozidlo["stav"] == "volne"
+
+    rezervace_po = database.ziskej_rezervaci(sluzba.spojeni, rezervace_id)
+    assert rezervace_po["stav"] == "vyprsela"
+
+
 def test_zahajeni_jizdy_po_vyprseni_rezervace():
     # Kontrola konfliktu K1: kdyz rezervace vyprsi, jizdu nelze zahajit.
     sluzba = priprav_sluzbu()
