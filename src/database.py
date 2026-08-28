@@ -96,7 +96,7 @@ def napln_ukazkova_data(spojeni):
     kurzor.execute("INSERT INTO uzivatele (jmeno, role, zablokovan) VALUES (?, ?, ?)",
                    ("Jan Novak", "uzivatel", 0))
     kurzor.execute("INSERT INTO uzivatele (jmeno, role, zablokovan) VALUES (?, ?, ?)",
-                   ("Admin Adminovic", "admin", 0))
+                   ("Admin", "admin", 0))
     kurzor.execute("INSERT INTO uzivatele (jmeno, role, zablokovan) VALUES (?, ?, ?)",
                    ("Petr Technik", "technik", 0))
 
