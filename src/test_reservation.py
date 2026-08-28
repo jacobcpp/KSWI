@@ -436,6 +436,11 @@ def test_api_rezervace_pres_endpoint():
 
     klient = TestClient(main.app)
 
+    # Verze backendu pro footer frontendu (issue #21).
+    odpoved_verze = klient.get("/verze")
+    assert odpoved_verze.status_code == 200
+    assert odpoved_verze.json() == {"verze": main.VERZE}
+
     # Seznam vozidel vrati kod 200 a neprazdny seznam.
     odpoved_vozidla = klient.get("/vozidla")
     assert odpoved_vozidla.status_code == 200

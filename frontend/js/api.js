@@ -25,6 +25,7 @@ async function apiPost(cesta, telo) {
 }
 
 const Api = {
+    verze: () => apiGet("/verze"),
     uzivatele: () => apiGet("/uzivatele"),
     vozidla: () => apiGet("/vozidla"),
     vytvorRezervaci: (uzivatelId, vozidloId) =>
