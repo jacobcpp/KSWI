@@ -105,14 +105,32 @@ def test_ukonceni_jizdy_snizi_nabiti_podle_ujete_vzdalenosti():
 
 
 def test_ukonceni_jizdy_nesnizi_nabiti_pod_nulu():
-    # Auto A ma 80 % nabiti - i pri hodne dlouhe jizde nesmi nabiti byt zaporne.
+    # Auto A ma 80 % nabiti, realny dojezd cca 266 km. Tesne pod tuto hranici
+    # nesmi nabiti kvuli zaokrouhleni klesnout pod 0.
     sluzba = priprav_sluzbu()
     rezervace = sluzba.vytvor_rezervaci(1, 1)
     jizda = sluzba.zahaj_jizdu(rezervace["rezervace_id"])
-    sluzba.ukonci_jizdu(jizda["jizda_id"], 1000)
+    sluzba.ukonci_jizdu(jizda["jizda_id"], 266)
 
     vozidlo = database.ziskej_vozidlo(sluzba.spojeni, 1)
     assert vozidlo["nabiti"] == 0
+
+
+def test_ukonceni_jizdy_odmitne_vzdalenost_nad_dojezd_vozidla():
+    # Auto A ma 80 % nabiti (dojezd cca 266 km) - 1000 km je fyzicky nemozne,
+    # jizda se ma odmitnout a nabiti/faktura se nemaji zmenit (bugfix).
+    sluzba = priprav_sluzbu()
+    rezervace = sluzba.vytvor_rezervaci(1, 1)
+    jizda = sluzba.zahaj_jizdu(rezervace["rezervace_id"])
+    vysledek = sluzba.ukonci_jizdu(jizda["jizda_id"], 1000)
+
+    assert vysledek["ok"] == False
+
+    vozidlo = database.ziskej_vozidlo(sluzba.spojeni, 1)
+    assert vozidlo["nabiti"] == 80
+
+    faktury = database.ziskej_faktury_uzivatele(sluzba.spojeni, 1)
+    assert len(faktury) == 0
 
 
 # ---------- Integracni testy ----------
