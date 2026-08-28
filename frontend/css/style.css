@@ -1,0 +1,133 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: #f4f5f7;
+    color: #1a1a1a;
+    margin: 0;
+    padding: 2rem 1rem;
+}
+
+.karta {
+    max-width: 640px;
+    margin: 0 auto 1.5rem auto;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 1.5rem;
+}
+
+h1 {
+    font-size: 1.4rem;
+    margin-top: 0;
+}
+
+h2 {
+    font-size: 1.1rem;
+    margin-top: 0;
+}
+
+label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.4rem;
+}
+
+select, input[type="number"] {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+}
+
+button {
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 0.55rem 1rem;
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #1d4ed8;
+}
+
+button.sekundarni {
+    background: #6b7280;
+}
+
+button.sekundarni:hover {
+    background: #4b5563;
+}
+
+button:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+}
+
+.hlavicka {
+    max-width: 640px;
+    margin: 0 auto 1rem auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.znacka-role {
+    display: inline-block;
+    background: #e5e7eb;
+    color: #374151;
+    font-size: 0.75rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    margin-left: 0.4rem;
+}
+
+.vozidlo {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid #eee;
+}
+
+.vozidlo:last-child {
+    border-bottom: none;
+}
+
+.poznamka {
+    color: #6b7280;
+    font-size: 0.85rem;
+}
+
+.chyba {
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    padding: 0.6rem 0.8rem;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+th, td {
+    text-align: left;
+    padding: 0.4rem 0.3rem;
+    border-bottom: 1px solid #eee;
+}
+
+.skryto {
+    display: none !important;
+}

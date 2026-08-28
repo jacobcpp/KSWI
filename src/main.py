@@ -7,6 +7,7 @@
 # Dokumentace API po spusteni:  http://127.0.0.1:8000/docs
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 import database
@@ -14,6 +15,15 @@ from reservation_service import RezervacniSluzba
 
 
 app = FastAPI(title="Carsharing API")
+
+# Frontend bezi na jinem originu (jiny kontejner/port), takze potrebuje CORS.
+# Zadna autentizace se neresi - viz issue #3 a otevrena otazka u K3 v reportu.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Soubor s databazi pro API.
 DB_SOUBOR = "carsharing_api.db"
@@ -60,6 +70,26 @@ class UkonceniVstup(BaseModel):
 
 
 # ---------- Endpointy ----------
+
+@app.get("/uzivatele")
+def seznam_uzivatelu():
+    # Vrati vsechny uzivatele - pouziva frontend na prihlasovaci obrazovce
+    # (vyber uzivatele misto skutecneho loginu, viz issue #3).
+    spojeni = database.vytvor_spojeni(DB_SOUBOR)
+    uzivatele = database.ziskej_vsechny_uzivatele(spojeni)
+
+    vysledek = []
+    for uzivatel in uzivatele:
+        vysledek.append({
+            "id": uzivatel["id"],
+            "jmeno": uzivatel["jmeno"],
+            "role": uzivatel["role"],
+            "zablokovan": bool(uzivatel["zablokovan"]),
+        })
+
+    spojeni.close()
+    return vysledek
+
 
 @app.get("/vozidla")
 def dostupna_vozidla():

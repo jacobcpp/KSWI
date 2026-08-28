@@ -1,0 +1,18 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: src/Dockerfile
+    ports:
+      - "8122:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+    environment:
+      # Adresa API dosazitelna z prohlizece uzivatele (ne z docker site).
+      - API_BASE_URL=http://localhost:8122
+    ports:
+      - "8123:80"
+    depends_on:
+      - api

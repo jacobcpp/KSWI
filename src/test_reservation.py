@@ -140,6 +140,12 @@ def test_api_rezervace_pres_endpoint():
     assert odpoved_rezervace.status_code == 200
     assert odpoved_rezervace.json()["ok"] == True
 
+    # Seznam uzivatelu pro prihlasovaci obrazovku frontendu (issue #3).
+    odpoved_uzivatele = klient.get("/uzivatele")
+    assert odpoved_uzivatele.status_code == 200
+    jmena = [u["jmeno"] for u in odpoved_uzivatele.json()]
+    assert "Jan Novak" in jmena
+
     # Uklid po testu.
     if os.path.exists(main.DB_SOUBOR):
         os.remove(main.DB_SOUBOR)

@@ -54,3 +54,17 @@ Ukázková volání jsou v `curl_ukazky.sh` (spusťte v jiném terminálu, když
 cd src
 python3 -m pytest test_reservation.py -v
 ```
+
+## Spuštění přes Docker (API + jednoduchý frontend)
+
+```
+docker compose up --build
+```
+
+- REST API: `http://localhost:8122` (dokumentace na `/docs`)
+- Frontend: `http://localhost:8123`
+
+Frontend (`frontend/`, vanilla JS bez buildu) je jednoduché rozhraní nad REST
+API – přihlášení výběrem uživatele ze seznamu (bez hesla), seznam vozidel,
+rezervace, zahájení/ukončení jízdy a historie jízd. Adresa API se do frontendu
+propisuje přes proměnnou `API_BASE_URL` v `docker-compose.yml`.
