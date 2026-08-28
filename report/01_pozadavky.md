@@ -252,6 +252,7 @@ Priorita je uvedena podle metody MoSCoW zjednodušené na tři úrovně:
 | FR13 | Servisní technik může potvrdit nabití a uvolnit vozidlo. | Střední | Analýza | Uvolnění nedostatečně nabitého vozidla | FR12, FR14 |
 | FR14 | Systém sleduje stav každého vozidla (volné / rezervováno / v jízdě / údržba). | Vysoká | Scénář (sledování stavu) | Nekonzistence stavu mezi komponentami | – |
 | FR15 | Po ukončení jízdy se nabití vozidla sníží úměrně ujeté vzdálenosti (výchozí 0,3 %/km). | Střední | Feature request (issue #11) | Nabití nesmí klesnout pod 0 | FR6, FR14 |
+| FR16 | Pokud po ukončení jízdy klesne nabití vozidla pod minimum pro rezervaci, systém ho automaticky přepne do stavu "údržba". | Vysoká | Konflikt K4 (issue #4) | Vozidlo zbytečně poslané do servisu kvůli chybě v měření/zaokrouhlení | FR13, FR14, FR15 |
 
 ---
 
@@ -315,8 +316,14 @@ databáze. Řešení autentizace je součástí budoucího jednoduchého fronten
 ### K4 – Lze rezervovat vozidlo s nízkým stavem nabití?
 
 **Problém:** Konflikt mezi FR3 (rezervace) a provozní bezpečností. Málo nabité
-vozidlo by nemuselo dojet do cíle.
+vozidlo by nemuselo dojet do cíle. Otevřenou otázkou bylo i to, *kdy přesně*
+se má vozidlo technikovi nabídnout - při vrácení posledním zákazníkem, nebo
+až při kontrole před další rezervací?
 
-**Řešení:** Zavedeme minimální úroveň nabití (např. 20 %), pod kterou vozidlo
-nelze rezervovat a je automaticky nabídnuto technikovi k nabití. Kontrola je
-součástí rezervační logiky (FR3).
+**Řešení:** Zavedeme minimální úroveň nabití (20 %), pod kterou vozidlo nelze
+rezervovat (kontrola je součástí rezervační logiky, FR3). Nabídnutí
+technikovi řešíme při vrácení vozidla: pokud po ukončení jízdy klesne nabití
+pod tuto hranici, systém vozidlo automaticky přepne do stavu "údržba" (místo
+"volné") - není tedy vůbec nabídnuto k další rezervaci s nedostatečným
+nabitím a technik ho uvidí ve svém přehledu vozidel k servisu. Servis pak
+technik ukončí stejným postupem jako u ručně označeného vozidla (FR13).

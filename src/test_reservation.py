@@ -341,6 +341,35 @@ def test_ukonceni_jizdy_nesnizi_nabiti_pod_nulu():
 
     vozidlo = database.ziskej_vozidlo(sluzba.spojeni, 1)
     assert vozidlo["nabiti"] == 0
+    assert vozidlo["stav"] == "udrzba"
+
+
+def test_vozidlo_jde_automaticky_do_servisu_pri_nizkem_nabiti_po_jizde():
+    # K4: kdyz po ukonceni jizdy klesne nabiti pod minimum pro rezervaci
+    # (20 %), vozidlo se automaticky posle do servisu - misto aby bylo
+    # znovu nabidnuto k rezervaci s nedostatecnym nabitim.
+    sluzba = priprav_sluzbu()
+    rezervace = sluzba.vytvor_rezervaci(1, 1)
+    jizda = sluzba.zahaj_jizdu(rezervace["rezervace_id"])
+    vysledek = sluzba.ukonci_jizdu(jizda["jizda_id"], 203)
+
+    assert vysledek["ok"] == True
+    vozidlo = database.ziskej_vozidlo(sluzba.spojeni, 1)
+    assert vozidlo["nabiti"] == 19
+    assert vozidlo["stav"] == "udrzba"
+
+
+def test_vozidlo_zustava_volne_kdyz_nabiti_neklesne_pod_minimum():
+    # Hranicni pripad: nabiti presne na minimu (20 %) uz vozidlo do servisu
+    # neposila - porovnava se ostrou nerovnosti, ne <=.
+    sluzba = priprav_sluzbu()
+    rezervace = sluzba.vytvor_rezervaci(1, 1)
+    jizda = sluzba.zahaj_jizdu(rezervace["rezervace_id"])
+    sluzba.ukonci_jizdu(jizda["jizda_id"], 200)
+
+    vozidlo = database.ziskej_vozidlo(sluzba.spojeni, 1)
+    assert vozidlo["nabiti"] == 20
+    assert vozidlo["stav"] == "volne"
 
 
 def test_ukonceni_jizdy_odmitne_vzdalenost_nad_dojezd_vozidla():
