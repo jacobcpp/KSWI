@@ -92,6 +92,29 @@ def test_zahajeni_jizdy_po_vyprseni_rezervace():
     assert "vyprsela" in vysledek["zprava"]
 
 
+def test_ukonceni_jizdy_snizi_nabiti_podle_ujete_vzdalenosti():
+    # Auto A (id 1) ma na zacatku 80 % nabiti. Po 10 km by melo klesnout
+    # o 10 * 0.3 = 3 procentni body na 77 %.
+    sluzba = priprav_sluzbu()
+    rezervace = sluzba.vytvor_rezervaci(1, 1)
+    jizda = sluzba.zahaj_jizdu(rezervace["rezervace_id"])
+    sluzba.ukonci_jizdu(jizda["jizda_id"], 10)
+
+    vozidlo = database.ziskej_vozidlo(sluzba.spojeni, 1)
+    assert vozidlo["nabiti"] == 77
+
+
+def test_ukonceni_jizdy_nesnizi_nabiti_pod_nulu():
+    # Auto A ma 80 % nabiti - i pri hodne dlouhe jizde nesmi nabiti byt zaporne.
+    sluzba = priprav_sluzbu()
+    rezervace = sluzba.vytvor_rezervaci(1, 1)
+    jizda = sluzba.zahaj_jizdu(rezervace["rezervace_id"])
+    sluzba.ukonci_jizdu(jizda["jizda_id"], 1000)
+
+    vozidlo = database.ziskej_vozidlo(sluzba.spojeni, 1)
+    assert vozidlo["nabiti"] == 0
+
+
 # ---------- Integracni testy ----------
 
 def test_cely_tok_rezervace_az_faktura():

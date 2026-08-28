@@ -16,6 +16,9 @@ import notifications
 MIN_NABITI_PROCENT = 20        # K4: vozidlo pod touto urovni nelze rezervovat
 PLATNOST_REZERVACE_MINUT = 15  # K1: jak dlouho rezervace drzi vozidlo
 
+# Spotreba baterie za kazdy ujety kilometr (v procentech nabiti).
+SPOTREBA_NABITI_PROCENT_NA_KM = 0.3
+
 
 class RezervacniSluzba:
     # Sluzba drzi spojeni s databazi. Diky tomu se da pri testech
@@ -132,6 +135,12 @@ class RezervacniSluzba:
 
         # Ukonceni jizdy v databazi.
         database.ukonci_jizdu_v_databazi(self.spojeni, jizda_id, ujeto_km)
+
+        # Ujeta vzdalenost snizuje nabiti vozidla (baterie se vybiji bez
+        # ohledu na to, jestli se jizda fakturuje - feature request #11).
+        vozidlo = database.ziskej_vozidlo(self.spojeni, jizda["vozidlo_id"])
+        nove_nabiti = max(0, round(vozidlo["nabiti"] - ujeto_km * SPOTREBA_NABITI_PROCENT_NA_KM))
+        database.nastav_nabiti_vozidla(self.spojeni, jizda["vozidlo_id"], nove_nabiti)
 
         # Rezervace je dokoncena a vozidlo je zase volne.
         database.nastav_stav_rezervace(self.spojeni, jizda["rezervace_id"], "dokoncena")
