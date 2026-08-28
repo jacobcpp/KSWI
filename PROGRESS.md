@@ -60,7 +60,8 @@ aby na sebe kód a report navazovaly)
 - K1: rezervace má časový limit platnosti (výchozí 30 min, mění jen admin,
   tabulka `nastaveni`) -> FR5.
 - K2: účtuje se jen jízda (od zahájení do ukončení), rezervace zdarma.
-- K3: role jsou oddělené (uzivatel / admin / technik), technik nerezervuje.
+- K3: technik smí i rezervovat vozidlo jako běžný uživatel - jde o testovací
+  jízdu (sloupec `ucel` na rezervaci), která se nefakturuje.
 - K4: minimální nabití pro rezervaci (konstanta, např. 20 %).
 - Klíčová komponenta = rezervační služba, kontroluje: stav vozidla == volne,
   nabití >= minimum, uživatel není zablokovaný.
