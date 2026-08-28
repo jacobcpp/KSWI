@@ -196,12 +196,21 @@ class RezervacniSluzba:
         if jizda["cas_konec"] is not None:
             return {"ok": False, "zprava": "Jizda uz byla ukoncena."}
 
+        # Kontrola realneho dojezdu podle aktualniho nabiti - ujeta vzdalenost
+        # nesmi vyzadovat vic energie, nez kolik jich vozidlo melo (bugfix,
+        # oprava spotreby baterie z issue #11).
+        vozidlo = database.ziskej_vozidlo(self.spojeni, jizda["vozidlo_id"])
+        max_dojezd_km = vozidlo["nabiti"] / SPOTREBA_NABITI_PROCENT_NA_KM
+        if ujeto_km > max_dojezd_km:
+            return {"ok": False, "zprava":
+                    f"Ujeta vzdalenost presahuje dojezd vozidla podle aktualniho "
+                    f"nabiti (max. {max_dojezd_km:.0f} km)."}
+
         # Ukonceni jizdy v databazi.
         database.ukonci_jizdu_v_databazi(self.spojeni, jizda_id, ujeto_km)
 
         # Ujeta vzdalenost snizuje nabiti vozidla (baterie se vybiji bez
         # ohledu na to, jestli se jizda fakturuje - feature request #11).
-        vozidlo = database.ziskej_vozidlo(self.spojeni, jizda["vozidlo_id"])
         nove_nabiti = max(0, round(vozidlo["nabiti"] - ujeto_km * SPOTREBA_NABITI_PROCENT_NA_KM))
         database.nastav_nabiti_vozidla(self.spojeni, jizda["vozidlo_id"], nove_nabiti)
 
