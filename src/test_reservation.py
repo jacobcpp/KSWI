@@ -153,6 +153,46 @@ def test_zahajeni_jizdy_po_vyprseni_rezervace():
     assert "vyprsela" in vysledek["zprava"]
 
 
+def test_rezervace_technika_je_testovaci():
+    # Konflikt K3: technik (uzivatel 3) rezervuje stejne jako bezny uzivatel,
+    # ale rezervace se ulozi s ucelem "testovaci".
+    sluzba = priprav_sluzbu()
+    vysledek = sluzba.vytvor_rezervaci(3, 1)
+
+    assert vysledek["ok"] == True
+    rezervace = database.ziskej_rezervaci(sluzba.spojeni, vysledek["rezervace_id"])
+    assert rezervace["ucel"] == "testovaci"
+
+
+def test_rezervace_bezneho_uzivatele_je_bezna():
+    # Bezny uzivatel (1) ma ucel rezervace "bezna".
+    sluzba = priprav_sluzbu()
+    vysledek = sluzba.vytvor_rezervaci(1, 1)
+
+    rezervace = database.ziskej_rezervaci(sluzba.spojeni, vysledek["rezervace_id"])
+    assert rezervace["ucel"] == "bezna"
+
+
+def test_testovaci_jizda_technika_negeneruje_fakturu():
+    # Konflikt K3: po ukonceni testovaci jizdy technika nevznikne faktura,
+    # ale jizda zustane v historii stejne jako u beznych uzivatelu.
+    sluzba = priprav_sluzbu()
+
+    rezervace = sluzba.vytvor_rezervaci(3, 1)
+    jizda = sluzba.zahaj_jizdu(rezervace["rezervace_id"])
+    konec = sluzba.ukonci_jizdu(jizda["jizda_id"], 10)
+
+    assert konec["ok"] == True
+    assert konec["faktura_id"] is None
+
+    faktury = database.ziskej_faktury_uzivatele(sluzba.spojeni, 3)
+    assert len(faktury) == 0
+
+    historie = sluzba.historie_jizd(3)
+    assert len(historie) == 1
+    assert historie[0]["id"] == jizda["jizda_id"]
+
+
 # ---------- Integracni testy ----------
 
 def test_cely_tok_rezervace_az_faktura():

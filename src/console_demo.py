@@ -55,6 +55,22 @@ def spust_ukazku():
               "- vozidlo", jizda["vozidlo_id"],
               "- ujeto", jizda["ujeto_km"], "km")
 
+    # ---------- K3: technik rezervuje vozidlo pro testovaci jizdu ----------
+    # ID 3 = Petr Technik. Rezervace a jizda probehnou stejne jako
+    # u bezneho uzivatele, ale jizda se nefakturuje.
+    # Auto A (id 1) je po kroku 5 zase volne.
+    technik_id = 3
+
+    vytiskni_oddelovac("7) Technik rezervuje Auto A pro testovaci jizdu")
+    rezervace_technik = sluzba.vytvor_rezervaci(technik_id, vozidlo_id)
+    print("Vysledek:", rezervace_technik["zprava"])
+
+    jizda_technik = sluzba.zahaj_jizdu(rezervace_technik["rezervace_id"])
+    print("Vysledek:", jizda_technik["zprava"])
+
+    konec_technik = sluzba.ukonci_jizdu(jizda_technik["jizda_id"], 5)
+    print("Vysledek:", konec_technik["zprava"], "- faktura_id:", konec_technik["faktura_id"])
+
     spojeni.close()
 
 

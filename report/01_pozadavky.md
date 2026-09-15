@@ -69,6 +69,7 @@ Případy užití:
 2. Potvrdit nabití vozidla
 3. Nahlásit závadu
 4. Zobrazit vozidla vyžadující servis
+5. Rezervovat vozidlo pro testovací jízdu (viz konflikt K3)
 
 ```mermaid
 graph LR
@@ -77,10 +78,12 @@ graph LR
     TC2(Potvrdit nabití vozidla)
     TC3(Nahlásit závadu)
     TC4(Zobrazit vozidla k servisu)
+    TC5(Rezervovat vozidlo na testovací jízdu)
     T --- TC1
     T --- TC2
     T --- TC3
     T --- TC4
+    T --- TC5
 ```
 
 ### 1.2.4 Souhrnný pohled na systém
@@ -204,6 +207,26 @@ flowchart TD
     F --> G[Konec]
 ```
 
+### 1.3.8 Testovací jízda technika (konflikt K3)
+
+Tok je shodný s rezervací a jízdou běžného uživatele (1.3.1) – liší se jen tím,
+že se podle role uživatele v okamžiku vytvoření rezervace označí jako testovací
+a po ukončení jízdy se přeskočí fakturace.
+
+```mermaid
+flowchart TD
+    A[Technik vybere volné a nabité vozidlo] --> B[Systém vytvoří rezervaci]
+    B --> C[Rezervace se uloží s účelem = testovací]
+    C --> D[Technik zahájí jízdu]
+    D --> E[Technik ukončí jízdu]
+    E --> F{Je účel rezervace testovací?}
+    F -- Ano --> G[Faktura se nevytváří]
+    F -- Ne --> H[Systém vygeneruje fakturu - FR7]
+    G --> I[Jízda se uloží do historie - FR8]
+    H --> I
+    I --> J[Konec]
+```
+
 ---
 
 ## 1.4 Funkční požadavky
@@ -220,6 +243,7 @@ Priorita je uvedena podle metody MoSCoW zjednodušené na tři úrovně:
 | FR5 | Rezervace automaticky vyprší po stanoveném čase, pokud jízda nezačne. | Střední | Analýza (viz konflikt K1) | Nejasná délka platnosti | FR3 |
 | FR6 | Uživatel může zahájit a ukončit jízdu z rezervovaného vozidla. | Vysoká | Scénář (historie jízd) | Nekonzistentní stav při chybě | FR3 |
 | FR7 | Systém po ukončení jízdy vygeneruje fakturu. | Vysoká | Scénář (fakturace) | Chybný výpočet ceny | FR6 |
+| FR7a | Testovací jízda technika (viz K3) se nefakturuje. | Střední | Konflikt K3 | Technik zneužije testovací jízdu k běžnému provozu | FR7, FR12 |
 | FR8 | Uživatel může zobrazit historii svých jízd a faktur. | Střední | Scénář (historie jízd) | Únik dat jiného uživatele | FR6, FR7 |
 | FR9 | Admin může spravovat uživatele (vytvořit, upravit, zablokovat). | Vysoká | Scénář (správa uživatelů) | Náhodné zablokování aktivního uživatele | FR1 |
 | FR10 | Admin může měnit role a oprávnění uživatelů. | Vysoká | Scénář (oprávnění) | Eskalace oprávnění | FR9 |
@@ -273,9 +297,19 @@ jsou ponechány na pozdější iteraci (viz kap. 6).
 **Problém:** Role technika není v zadání přesně ohraničená. Není jasné, zda má
 i práva běžného uživatele.
 
-**Řešení:** Role jsou oddělené. Technik má pouze servisní oprávnění. Pokud si
-zaměstnanec chce vozidlo i půjčit, musí mít samostatný uživatelský účet. Tím se
-předejde záměně provozních a servisních akcí.
+**Řešení:** Technik smí kromě označení vozidla do údržby (FR12) vozidlo i
+rezervovat – jde o testovací jízdu. Logika rezervace i jízdy je stejná jako
+u běžného uživatele (FR3, FR6), ale jízda se mu nefakturuje (viz FR7a).
+
+Účel rezervace ("běžná" / "testovací") se určí podle role uživatele v okamžiku
+vytvoření rezervace a uloží se přímo na rezervaci – nejde tedy o odvozování
+z aktuální role uživatele až při fakturaci. Díky tomu je rozhodnutí auditovatelné
+zpětně v datech a odolné vůči pozdější změně role uživatele. Testovací jízda se
+v historii jízd zobrazuje stejně jako běžnému uživateli (FR8).
+
+Otevřenou otázkou zůstává autorizace – REST API dnes neověřuje identitu volajícího
+(`uzivatel_id` posílá klient sám), takže rozlišení role je zatím jen na úrovni
+databáze. Řešení autentizace je součástí budoucího jednoduchého frontendu.
 
 ### K4 – Lze rezervovat vozidlo s nízkým stavem nabití?
 

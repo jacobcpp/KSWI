@@ -17,6 +17,14 @@ MIN_NABITI_PROCENT = 20                # K4: vozidlo pod touto urovni nelze reze
 PLATNOST_REZERVACE_MINUT_VYCHOZI = 30  # K1: vychozi platnost rezervace, meni jen admin
 KLIC_PLATNOST_REZERVACE = "platnost_rezervace_minut"
 
+# K3: technik smi rezervovat vozidlo stejne jako bezny uzivatel, ale jde
+# o testovaci jizdu, ktera se nefakturuje. Ucel se urci podle role uzivatele
+# v okamziku vytvoreni rezervace a od te chvile uz je nezavisly na roli
+# (pozdejsi zmena role uzivatele fakturaci existujicich jizd neovlivni).
+ROLE_TECHNIK = "technik"
+UCEL_BEZNA = "bezna"
+UCEL_TESTOVACI = "testovaci"
+
 
 class RezervacniSluzba:
     # Sluzba drzi spojeni s databazi. Diky tomu se da pri testech
@@ -112,9 +120,12 @@ class RezervacniSluzba:
         platnost_do = datetime.now() + timedelta(minutes=platnost_minut)
         platnost_do_text = platnost_do.isoformat()
 
+        # Ucel rezervace podle role (K3) - technikova jizda je testovaci.
+        ucel = UCEL_TESTOVACI if uzivatel["role"] == ROLE_TECHNIK else UCEL_BEZNA
+
         # Ulozeni rezervace a zmena stavu vozidla.
         rezervace_id = database.uloz_rezervaci(self.spojeni, vozidlo_id,
-                                               uzivatel_id, platnost_do_text)
+                                               uzivatel_id, platnost_do_text, ucel)
         database.nastav_stav_vozidla(self.spojeni, vozidlo_id, "rezervovano")
 
         # Notifikace uzivateli.
@@ -181,14 +192,20 @@ class RezervacniSluzba:
         database.ukonci_jizdu_v_databazi(self.spojeni, jizda_id, ujeto_km)
 
         # Rezervace je dokoncena a vozidlo je zase volne.
+        rezervace = database.ziskej_rezervaci(self.spojeni, jizda["rezervace_id"])
         database.nastav_stav_rezervace(self.spojeni, jizda["rezervace_id"], "dokoncena")
         database.nastav_stav_vozidla(self.spojeni, jizda["vozidlo_id"], "volne")
 
-        # Volani fakturacni komponenty - vytvori fakturu.
-        faktura_id = billing.vytvor_fakturu(self.spojeni, jizda_id,
-                                            jizda["uzivatel_id"], ujeto_km)
-
-        notifications.posli(jizda["uzivatel_id"], "Vase jizda byla ukoncena a vyuctovana.")
+        # K3: testovaci jizda (technik) se nefakturuje - o fakturaci rozhoduje
+        # ucel ulozeny na rezervaci, ne aktualni role uzivatele.
+        if rezervace["ucel"] == UCEL_TESTOVACI:
+            faktura_id = None
+            notifications.posli(jizda["uzivatel_id"], "Testovaci jizda byla ukoncena.")
+        else:
+            # Volani fakturacni komponenty - vytvori fakturu.
+            faktura_id = billing.vytvor_fakturu(self.spojeni, jizda_id,
+                                                jizda["uzivatel_id"], ujeto_km)
+            notifications.posli(jizda["uzivatel_id"], "Vase jizda byla ukoncena a vyuctovana.")
 
         return {"ok": True, "zprava": "Jizda ukoncena.", "faktura_id": faktura_id}
 
