@@ -59,6 +59,11 @@ class UkonceniVstup(BaseModel):
     ujeto_km: float
 
 
+class PlatnostRezervaceVstup(BaseModel):
+    uzivatel_id: int
+    minuty: int
+
+
 # ---------- Endpointy ----------
 
 @app.get("/vozidla")
@@ -116,6 +121,17 @@ def zahaj_jizdu(vstup: JizdaVstup):
 def ukonci_jizdu(jizda_id: int, vstup: UkonceniVstup):
     sluzba = ziskej_sluzbu()
     vysledek = sluzba.ukonci_jizdu(jizda_id, vstup.ujeto_km)
+    sluzba.spojeni.close()
+    if vysledek["ok"] == False:
+        raise HTTPException(status_code=400, detail=vysledek["zprava"])
+    return vysledek
+
+
+@app.post("/nastaveni/platnost-rezervace")
+def nastav_platnost_rezervace(vstup: PlatnostRezervaceVstup):
+    # Zmena limitu platnosti rezervace (K1) - smi jen administrator.
+    sluzba = ziskej_sluzbu()
+    vysledek = sluzba.nastav_platnost_rezervace(vstup.uzivatel_id, vstup.minuty)
     sluzba.spojeni.close()
     if vysledek["ok"] == False:
         raise HTTPException(status_code=400, detail=vysledek["zprava"])

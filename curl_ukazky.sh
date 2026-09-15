@@ -30,3 +30,8 @@ curl -s $ZAKLAD/uzivatele/1/historie; echo
 
 echo "### 6) Zruseni rezervace c. 1 (pokud jeste existuje)"
 curl -s -X POST $ZAKLAD/rezervace/1/zruseni; echo
+
+echo "### 7) Zmena platnosti rezervace na 45 minut (admin, uzivatel 2)"
+curl -s -X POST $ZAKLAD/nastaveni/platnost-rezervace \
+     -H "Content-Type: application/json" \
+     -d '{"uzivatel_id":2,"minuty":45}'; echo

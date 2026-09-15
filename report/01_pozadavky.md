@@ -254,9 +254,9 @@ navržené řešení.
 vozidlo rezervované, pokud uživatel jízdu nezahájí. Dlouhá rezervace blokuje
 vozidlo ostatním (konflikt mezi FR3 a dostupností vozidel pro ostatní).
 
-**Řešení:** Zavedeme časový limit platnosti rezervace (např. 15 minut). Po jeho
+**Řešení:** Zavedeme časový limit platnosti rezervace (30 minut). Po jeho
 vypršení se rezervace automaticky zruší a vozidlo se uvolní (požadavek FR5).
-Konkrétní hodnota je konfigurovatelná.
+Konkrétní hodnota je konfigurovatelná, ale měnit ji smí pouze administrátor.
 
 ### K2 – Platí uživatel za dobu rezervace, nebo jen za jízdu?
 

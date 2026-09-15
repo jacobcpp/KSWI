@@ -57,7 +57,8 @@ aby na sebe kód a report navazovaly)
 
 ### Z kroku 1 (požadavky) – co se musí promítnout do kódu (krok 3)
 - Stavy vozidla (FR14): `volne`, `rezervovano`, `v_jizde`, `udrzba`.
-- K1: rezervace má časový limit platnosti (konstanta, např. 15 min) -> FR5.
+- K1: rezervace má časový limit platnosti (výchozí 30 min, mění jen admin,
+  tabulka `nastaveni`) -> FR5.
 - K2: účtuje se jen jízda (od zahájení do ukončení), rezervace zdarma.
 - K3: role jsou oddělené (uzivatel / admin / technik), technik nerezervuje.
 - K4: minimální nabití pro rezervaci (konstanta, např. 20 %).
@@ -65,7 +66,7 @@ aby na sebe kód a report navazovaly)
   nabití >= minimum, uživatel není zablokovaný.
 
 ### Z kroku 3 (kód) – pro navázání v krocích 4 (API) a 5 (testy)
-- Tabulky: uzivatele, vozidla, rezervace, jizdy, faktury.
+- Tabulky: uzivatele, vozidla, rezervace, jizdy, faktury, nastaveni.
 - Třída `RezervacniSluzba(spojeni)` v `reservation_service.py`, metody vrací
   slovník `{"ok": bool, "zprava": str, ...}`:
   - `zobraz_dostupna_vozidla()`
@@ -74,7 +75,9 @@ aby na sebe kód a report navazovaly)
   - `zahaj_jizdu(rezervace_id)` -> + "jizda_id"
   - `ukonci_jizdu(jizda_id, ujeto_km)` -> + "faktura_id"
   - `historie_jizd(uzivatel_id)` -> seznam řádků
-- Konstanty: MIN_NABITI_PROCENT=20, PLATNOST_REZERVACE_MINUT=15, CENA_ZA_KM=5.0.
+- Konstanty: MIN_NABITI_PROCENT=20, PLATNOST_REZERVACE_MINUT_VYCHOZI=30, CENA_ZA_KM=5.0.
+  Platnost rezervace lze prepsat pres `RezervacniSluzba.nastav_platnost_rezervace`
+  (jen role admin), hodnota se ukladá do tabulky `nastaveni`.
 - `database.vytvor_spojeni(":memory:")` pro testy (DB v paměti).
 - Ukázková data: uživatel 1=uzivatel, 2=admin, 3=technik; vozidlo 1=Auto A(volne,80),
   2=Auto B(volne,15 -> pod limitem), 3=Auto C(udrzba,50).
@@ -83,7 +86,8 @@ aby na sebe kód a report navazovaly)
 ### Z kroku 4 (REST API) – pro navázání v kroku 5 (testy)
 - `src/main.py` (FastAPI), DB soubor "carsharing_api.db", při startu seed pokud prázdná.
 - Endpointy: GET /vozidla, POST /rezervace, POST /rezervace/{id}/zruseni,
-  POST /jizdy, POST /jizdy/{id}/ukonceni, GET /uzivatele/{id}/historie.
+  POST /jizdy, POST /jizdy/{id}/ukonceni, GET /uzivatele/{id}/historie,
+  POST /nastaveni/platnost-rezervace (jen admin, K1).
 - Chyby vrací HTTP 400 (HTTPException) s detailem = zprava ze služby.
 - Ověřeno curl skriptem curl_ukazky.sh (v kořeni projektu). Sekce reportu:
   report/03_implementace_api.md (pokrývá body 3 i 4 zadání).
